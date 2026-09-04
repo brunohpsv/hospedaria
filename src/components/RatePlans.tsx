@@ -80,7 +80,7 @@ export const RatePlans: React.FC<RatePlansProps> = ({
   const baseSubtotal = baseNightRate * nights;
   const simTotal = Math.max(0, baseSubtotal + extraPaxTotal - Number(simDiscount || 0));
 
-  const copySimQuote = () => {
+  const copySimQuote = async () => {
     const seasonLabel =
       simSeason === 'low'
         ? 'Baixa Temporada'
@@ -106,8 +106,28 @@ Desconto:         R$ ${Number(simDiscount || 0).toFixed(2)}
 VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
 ============================================================`;
 
-    navigator.clipboard.writeText(text);
-    alert('Orçamento copiado para a área de transferência!');
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+      } catch {
+        // ignore
+      }
+      document.body.removeChild(textarea);
+    }
+    setEditedNotification('Orçamento copiado para a área de transferência!');
+    setTimeout(() => setEditedNotification(null), 3000);
   };
 
   return (

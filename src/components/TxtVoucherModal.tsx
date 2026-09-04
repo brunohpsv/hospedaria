@@ -2,25 +2,34 @@ import React, { useState } from 'react';
 import { GuestReservation, Room } from '../types';
 
 interface TxtVoucherModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   guest?: GuestReservation | null;
-  guests: GuestReservation[];
-  rooms: Room[];
+  guests?: GuestReservation[];
+  rooms?: Room[];
 }
 
 export const TxtVoucherModal: React.FC<TxtVoucherModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
   guest: initialGuest,
-  guests,
-  rooms,
+  guests = [],
+  rooms = [],
 }) => {
   const [selectedGuestId, setSelectedGuestId] = useState<string>(
     initialGuest?.id || (guests.length > 0 ? guests[0].id : '')
   );
   const [mode, setMode] = useState<'voucher' | 'daily_report'>('voucher');
   const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // Sync selectedGuestId when initialGuest changes
+  React.useEffect(() => {
+    if (initialGuest?.id) {
+      setSelectedGuestId(initialGuest.id);
+    } else if (guests.length > 0 && !selectedGuestId) {
+      setSelectedGuestId(guests[0].id);
+    }
+  }, [initialGuest, guests, selectedGuestId]);
 
   if (!isOpen) return null;
 
@@ -115,8 +124,28 @@ FIM DO RELATÓRIO OPERACIONAL
 
   const displayText = mode === 'voucher' ? generateVoucherText() : generateDailyReport();
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(displayText);
+  const handleCopy = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(displayText);
+      } else {
+        throw new Error('Clipboard API not available');
+      }
+    } catch {
+      // Fallback for sandboxed iframes
+      const textarea = document.createElement('textarea');
+      textarea.value = displayText;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+      } catch {
+        // ignore
+      }
+      document.body.removeChild(textarea);
+    }
     setCopyFeedback(true);
     setTimeout(() => setCopyFeedback(false), 2000);
   };
@@ -137,23 +166,30 @@ FIM DO RELATÓRIO OPERACIONAL
   };
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Imprimir Comprovante TXT</title>
-            <style>
-              body { font-family: 'Consolas', 'Courier New', monospace; white-space: pre; font-size: 12px; margin: 20px; }
-            </style>
-          </head>
-          <body>${displayText}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
+    try {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Imprimir Documento TXT</title>
+              <style>
+                body { font-family: 'Consolas', 'Courier New', monospace; white-space: pre; font-size: 12px; margin: 20px; }
+              </style>
+            </head>
+            <body>${displayText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        return;
+      }
+    } catch {
+      // ignore
     }
+    window.print();
   };
 
   return (
