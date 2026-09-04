@@ -1,0 +1,6 @@
+{
+  "name": "Bloco de Notas - Gestão Hoteleira",
+  "description": "Sistema ultra minimalista para gestão de hotéis, pousadas e vilas no estilo Bloco de Notas do Windows, com atalhos de teclado e alta produtividade.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "rooms": {
+      "title": "Rooms",
+      "description": "Quartos e acomodações do hotel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "string" },
+        "type": { "type": "string" },
+        "area": { "type": "string" },
+        "status": { "type": "string" },
+        "dailyRate": { "type": "number" },
+        "capacity": { "type": "number" },
+        "currentGuestId": { "type": "string" },
+        "currentGuestName": { "type": "string" },
+        "checkInDate": { "type": "string" },
+        "checkOutDate": { "type": "string" }
+      },
+      "required": ["id", "number", "type", "status", "dailyRate", "capacity"]
+    },
+    "guests": {
+      "title": "Guests",
+      "description": "Reservas e cadastros de hóspedes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "document": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "city": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "checkIn": { "type": "string" },
+        "checkOut": { "type": "string" },
+        "numGuests": { "type": "number" },
+        "dailyRate": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "discount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "roomNumber", "checkIn", "checkOut", "status"]
+    },
+    "categories": {
+      "title": "Categories",
+      "description": "Categorias de acomodações",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "ratePlans": {
+      "title": "Rate Plans",
+      "description": "Tabela de tarifas e planos por categoria",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomType": { "type": "string" },
+        "lowSeasonRate": { "type": "number" },
+        "midSeasonRate": { "type": "number" },
+        "highSeasonRate": { "type": "number" },
+        "holidayRate": { "type": "number" },
+        "extraPersonRate": { "type": "number" },
+        "minNights": { "type": "number" }
+      },
+      "required": ["id", "roomType", "lowSeasonRate", "midSeasonRate", "highSeasonRate", "holidayRate"]
+    }
+  }
+}
