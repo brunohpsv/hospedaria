@@ -131,12 +131,17 @@ VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
   };
 
   return (
-    <div className="p-3 bg-white font-mono text-xs">
+    <div className="h-full flex flex-col p-2 bg-white font-mono text-xs overflow-hidden">
       {/* Top Header */}
-      <div className="border-b border-black pb-2 mb-3 flex items-center justify-between">
-        <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
-          TABELA DE VALORES & TARIFÁRIO
-        </h2>
+      <div className="border-b border-black pb-1.5 mb-2 flex items-center justify-between shrink-0">
+        <div className="flex items-center space-x-2">
+          <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
+            TABELA DE VALORES & TARIFÁRIO
+          </h2>
+          <span className="text-[10px] text-gray-700">
+            Categorias: <strong>{plans.length}</strong>
+          </span>
+        </div>
         {editedNotification && (
           <span className="bg-black text-[#FFFFCC] px-2 py-0.5 text-[10px] font-bold">
             {editedNotification}
@@ -144,210 +149,240 @@ VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
         )}
       </div>
 
-      {/* Main Rate Table */}
-      <div className="border border-black mb-4 overflow-x-auto bg-white p-2">
-        <table className="w-full border-collapse text-left text-[11px]">
-          <thead>
-            <tr className="border-b border-black">
-              <th className="py-1 font-bold">CATEGORIA</th>
-              <th className="py-1 text-right font-bold">BAIXA TEMP. (R$)</th>
-              <th className="py-1 text-right font-bold">MÉDIA TEMP. (R$)</th>
-              <th className="py-1 text-right font-bold">ALTA TEMP. (R$)</th>
-              <th className="py-1 text-right font-bold">FERIADOS (R$)</th>
-              <th className="py-1 text-right font-bold">PAX EXTRA (R$)</th>
-              <th className="py-1 text-center font-bold">MÍN. DIÁRIAS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {plans.map((p) => (
-              <tr key={p.id} className="border-b border-dotted border-black hover:bg-[#FFFFCC]">
-                <td className="py-1.5 font-bold">{p.roomType.toUpperCase()}</td>
-
-                <td className="py-1.5 text-right">
-                  <input
-                    type="number"
-                    value={p.lowSeasonRate}
-                    onChange={(e) =>
-                      handleFieldChange(p.id, 'lowSeasonRate', Number(e.target.value))
-                    }
-                    className="w-20 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
-                  />
-                </td>
-
-                <td className="py-1.5 text-right">
-                  <input
-                    type="number"
-                    value={p.midSeasonRate}
-                    onChange={(e) =>
-                      handleFieldChange(p.id, 'midSeasonRate', Number(e.target.value))
-                    }
-                    className="w-20 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
-                  />
-                </td>
-
-                <td className="py-1.5 text-right">
-                  <input
-                    type="number"
-                    value={p.highSeasonRate}
-                    onChange={(e) =>
-                      handleFieldChange(p.id, 'highSeasonRate', Number(e.target.value))
-                    }
-                    className="w-20 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
-                  />
-                </td>
-
-                <td className="py-1.5 text-right">
-                  <input
-                    type="number"
-                    value={p.holidayRate}
-                    onChange={(e) =>
-                      handleFieldChange(p.id, 'holidayRate', Number(e.target.value))
-                    }
-                    className="w-20 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
-                  />
-                </td>
-
-                <td className="py-1.5 text-right">
-                  <input
-                    type="number"
-                    value={p.extraPersonRate}
-                    onChange={(e) =>
-                      handleFieldChange(p.id, 'extraPersonRate', Number(e.target.value))
-                    }
-                    className="w-16 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] text-xs"
-                  />
-                </td>
-
-                <td className="py-1.5 text-center">
-                  <input
-                    type="number"
-                    min="1"
-                    value={p.minNights}
-                    onChange={(e) =>
-                      handleFieldChange(p.id, 'minNights', Number(e.target.value))
-                    }
-                    className="w-12 border border-black px-1 h-5 text-center bg-white focus:bg-[#FFFFCC] text-xs"
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Simulator Section */}
-      <div className="border border-black p-3 bg-white">
-        <div className="border-b border-black pb-1 mb-2 font-bold">
-          <span className="bg-[#FFFFCC] px-1 border border-black">SIMULADOR DE ORÇAMENTO</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end mb-3">
-          <div>
-            <label className="block font-bold mb-0.5 text-[10px]">CATEGORIA:</label>
-            <select
-              value={simRoomType}
-              onChange={(e) => setSimRoomType(e.target.value as RoomType)}
-              className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs font-bold"
-            >
-              {plans.map((p) => (
-                <option key={p.id} value={p.roomType}>
-                  {p.roomType}
-                </option>
-              ))}
-            </select>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0 overflow-hidden">
+        {/* Left Column: Rate Plans Table */}
+        <div className="lg:col-span-7 border border-black p-2 bg-white flex flex-col h-full overflow-hidden">
+          <div className="border-b border-black pb-1 mb-2 font-bold flex items-center justify-between text-[11px] shrink-0">
+            <span className="bg-[#FFFFCC] px-1 border border-black">
+              TARIFAS VIGENTES (EDIÇÃO DIRETA)
+            </span>
+            <span className="text-[10px] text-gray-600">Autossalvo</span>
           </div>
 
-          <div>
-            <label className="block font-bold mb-0.5 text-[10px]">TEMPORADA:</label>
-            <select
-              value={simSeason}
-              onChange={(e) => setSimSeason(e.target.value as any)}
-              className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
-            >
-              <option value="low">Baixa Temporada</option>
-              <option value="mid">Média Temporada</option>
-              <option value="high">Alta Temporada</option>
-              <option value="holiday">Feriados</option>
-            </select>
+          <div className="border border-black overflow-x-auto overflow-y-auto flex-1 min-h-0 bg-white">
+            <table className="w-full border-collapse text-left text-[11px]">
+              <thead className="sticky top-0 bg-[#FFFFCC] z-10 border-b border-black">
+                <tr>
+                  <th className="py-1 px-1.5 font-bold">CATEGORIA</th>
+                  <th className="py-1 px-1 text-right font-bold">BAIXA (R$)</th>
+                  <th className="py-1 px-1 text-right font-bold">MÉDIA (R$)</th>
+                  <th className="py-1 px-1 text-right font-bold">ALTA (R$)</th>
+                  <th className="py-1 px-1 text-right font-bold">FERIADO (R$)</th>
+                  <th className="py-1 px-1 text-right font-bold">EXTRA (R$)</th>
+                  <th className="py-1 px-1 text-center font-bold">MÍN. NOITES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plans.map((p) => (
+                  <tr key={p.id} className="border-b border-dotted border-black hover:bg-[#FFFFCC]">
+                    <td className="py-1.5 px-1.5 font-bold">{p.roomType.toUpperCase()}</td>
+
+                    <td className="py-1.5 px-1 text-right">
+                      <input
+                        type="number"
+                        value={p.lowSeasonRate}
+                        onChange={(e) =>
+                          handleFieldChange(p.id, 'lowSeasonRate', Number(e.target.value))
+                        }
+                        className="w-16 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
+                      />
+                    </td>
+
+                    <td className="py-1.5 px-1 text-right">
+                      <input
+                        type="number"
+                        value={p.midSeasonRate}
+                        onChange={(e) =>
+                          handleFieldChange(p.id, 'midSeasonRate', Number(e.target.value))
+                        }
+                        className="w-16 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
+                      />
+                    </td>
+
+                    <td className="py-1.5 px-1 text-right">
+                      <input
+                        type="number"
+                        value={p.highSeasonRate}
+                        onChange={(e) =>
+                          handleFieldChange(p.id, 'highSeasonRate', Number(e.target.value))
+                        }
+                        className="w-16 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
+                      />
+                    </td>
+
+                    <td className="py-1.5 px-1 text-right">
+                      <input
+                        type="number"
+                        value={p.holidayRate}
+                        onChange={(e) =>
+                          handleFieldChange(p.id, 'holidayRate', Number(e.target.value))
+                        }
+                        className="w-16 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] font-bold text-xs"
+                      />
+                    </td>
+
+                    <td className="py-1.5 px-1 text-right">
+                      <input
+                        type="number"
+                        value={p.extraPersonRate}
+                        onChange={(e) =>
+                          handleFieldChange(p.id, 'extraPersonRate', Number(e.target.value))
+                        }
+                        className="w-14 border border-black px-1 h-5 text-right bg-white focus:bg-[#FFFFCC] text-xs"
+                      />
+                    </td>
+
+                    <td className="py-1.5 px-1 text-center">
+                      <input
+                        type="number"
+                        min="1"
+                        value={p.minNights}
+                        onChange={(e) =>
+                          handleFieldChange(p.id, 'minNights', Number(e.target.value))
+                        }
+                        className="w-10 border border-black px-1 h-5 text-center bg-white focus:bg-[#FFFFCC] text-xs"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          <div>
-            <label className="block font-bold mb-0.5 text-[10px]">CHECK-IN:</label>
-            <input
-              type="date"
-              value={simCheckIn}
-              onChange={(e) => setSimCheckIn(e.target.value)}
-              className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold mb-0.5 text-[10px]">CHECK-OUT:</label>
-            <input
-              type="date"
-              value={simCheckOut}
-              onChange={(e) => setSimCheckOut(e.target.value)}
-              className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold mb-0.5 text-[10px]">PAX EXTRA:</label>
-            <input
-              type="number"
-              min="0"
-              max="6"
-              value={simExtraGuests}
-              onChange={(e) => setSimExtraGuests(Number(e.target.value))}
-              className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block font-bold mb-0.5 text-[10px]">DESCONTO (R$):</label>
-            <input
-              type="number"
-              min="0"
-              value={simDiscount}
-              onChange={(e) => setSimDiscount(Number(e.target.value))}
-              className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
-            />
+          <div className="mt-1 pt-1 border-t border-black text-[10px] text-gray-600 flex justify-between shrink-0">
+            <span>* Alterações refletem imediatamente no simulador e no sistema.</span>
           </div>
         </div>
 
-        <div className="border border-black p-3 bg-[#FFFFCC] flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="text-xs">
-              Estadia: <strong>{nights} noite(s)</strong> | Diária:{' '}
-              <strong>R$ {baseNightRate.toFixed(2)}</strong> | Subtotal:{' '}
-              <strong>R$ {baseSubtotal.toFixed(2)}</strong>
-            </div>
-            {simExtraGuests > 0 && (
-              <div className="text-[10px] text-gray-700">
-                + {simExtraGuests} hóspede(s) adicional(is) = R$ {extraPaxTotal.toFixed(2)}
-              </div>
-            )}
-            {simDiscount > 0 && (
-              <div className="text-[10px] text-gray-700">
-                - Desconto = R$ {Number(simDiscount).toFixed(2)}
-              </div>
-            )}
+        {/* Right Column: Simulator Section */}
+        <div className="lg:col-span-5 border border-black p-2 bg-white flex flex-col h-full overflow-y-auto">
+          <div className="border-b border-black pb-1 mb-2 font-bold flex items-center justify-between text-[11px] shrink-0">
+            <span className="bg-[#FFFFCC] px-1 border border-black">
+              SIMULADOR DE ORÇAMENTO & PROPOSTAS
+            </span>
+            <span className="text-[10px] text-gray-700">PRATICIDADE</span>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="text-right">
-              <span className="text-[10px] text-gray-600 block font-bold">TOTAL ORÇADO</span>
-              <span className="text-sm font-bold bg-white border border-black px-2 py-0.5 block">
-                R$ {simTotal.toFixed(2)}
-              </span>
+          <div className="space-y-2 flex-1 flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">CATEGORIA:</label>
+                  <select
+                    value={simRoomType}
+                    onChange={(e) => setSimRoomType(e.target.value as RoomType)}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs font-bold"
+                  >
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.roomType}>
+                        {p.roomType}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">TEMPORADA:</label>
+                  <select
+                    value={simSeason}
+                    onChange={(e) => setSimSeason(e.target.value as any)}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
+                  >
+                    <option value="low">Baixa Temporada</option>
+                    <option value="mid">Média Temporada</option>
+                    <option value="high">Alta Temporada</option>
+                    <option value="holiday">Feriados</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">CHECK-IN:</label>
+                  <input
+                    type="date"
+                    value={simCheckIn}
+                    onChange={(e) => setSimCheckIn(e.target.value)}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">CHECK-OUT:</label>
+                  <input
+                    type="date"
+                    value={simCheckOut}
+                    onChange={(e) => setSimCheckOut(e.target.value)}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">PAX EXTRA:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="6"
+                    value={simExtraGuests}
+                    onChange={(e) => setSimExtraGuests(Number(e.target.value))}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">DESCONTO (R$):</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={simDiscount}
+                    onChange={(e) => setSimDiscount(Number(e.target.value))}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
+                  />
+                </div>
+              </div>
             </div>
 
-            <button
-              onClick={copySimQuote}
-              className="px-3 h-7 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-xs"
-            >
-              [ COPIAR TXT ]
-            </button>
+            {/* Live Calculation Output Card */}
+            <div className="border border-black p-2 bg-[#FFFFCC] space-y-2 mt-2 shrink-0">
+              <div className="text-xs space-y-0.5">
+                <div>
+                  Estadia: <strong>{nights} noite(s)</strong> | Diária:{' '}
+                  <strong>R$ {baseNightRate.toFixed(2)}</strong>
+                </div>
+                <div>
+                  Subtotal Diárias: <strong>R$ {baseSubtotal.toFixed(2)}</strong>
+                </div>
+                {simExtraGuests > 0 && (
+                  <div className="text-[10px] text-gray-700">
+                    + {simExtraGuests} hóspede(s) adicional(is) = R$ {extraPaxTotal.toFixed(2)}
+                  </div>
+                )}
+                {simDiscount > 0 && (
+                  <div className="text-[10px] text-gray-700">
+                    - Desconto = R$ {Number(simDiscount).toFixed(2)}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-black">
+                <div>
+                  <span className="text-[9px] text-gray-600 block font-bold">TOTAL ESTIMADO</span>
+                  <span className="text-sm font-bold bg-white border border-black px-2 py-0.5 block">
+                    R$ {simTotal.toFixed(2)}
+                  </span>
+                </div>
+
+                <button
+                  onClick={copySimQuote}
+                  className="px-3 h-7 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-xs"
+                  title="Copiar texto formatado para enviar no WhatsApp ou Bloco de Notas"
+                >
+                  [ COPIAR TXT ]
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

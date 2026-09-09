@@ -69,6 +69,23 @@
         "minNights": { "type": "number" }
       },
       "required": ["id", "roomType", "lowSeasonRate", "midSeasonRate", "highSeasonRate", "holidayRate"]
+    },
+    "clients": {
+      "title": "Clients",
+      "description": "Contas de clientes cadastrados, assinaturas e chaves de acesso",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "cpfCnpj": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "responsibleName": { "type": "string" },
+        "responsibleCpf": { "type": "string" },
+        "plan": { "type": "string" },
+        "accessKey": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "cpfCnpj", "email", "responsibleName", "plan", "accessKey"]
     }
   }
 }

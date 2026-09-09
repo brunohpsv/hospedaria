@@ -70,7 +70,7 @@ DETALHES DA ACOMODAÇÃO:
 ----------------------------------------------------------------------
 DEMONSTRATIVO FINANCEIRO:
   VALOR DA DIÁRIA  : R$ ${currentGuest.dailyRate.toFixed(2)}
-  DESCONTO         : R$ ${currentGuest.discount.toFixed(2)}
+  DESCONTO         : ${currentGuest.discount || 0}%
   VALOR TOTAL PAGO : R$ ${currentGuest.totalAmount.toFixed(2)}
   FORMA PAGAMENTO  : ${currentGuest.paymentMethod}
   STATUS DA ESTADIA: [${currentGuest.status.toUpperCase()}]

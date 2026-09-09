@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ActiveTab, Room, GuestReservation, RatePlan, RoomStatus } from './types';
+import { ActiveTab, Room, GuestReservation, RatePlan, RoomStatus, ClientAccount } from './types';
 import { INITIAL_ROOMS, INITIAL_GUESTS, INITIAL_RATE_PLANS, INITIAL_CATEGORIES } from './mockData';
 import { WindowHeader } from './components/WindowHeader';
 import { GuestRegistration } from './components/GuestRegistration';
@@ -9,6 +9,9 @@ import { BookingCalendar } from './components/BookingCalendar';
 import { TxtVoucherModal } from './components/TxtVoucherModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { StatusBar } from './components/StatusBar';
+import { AuthPortal } from './components/AuthPortal';
+import { SUBSCRIPTION_PLANS, DEMO_CLIENT } from './lib/authConstants';
+import { useDialog } from './lib/dialogContext';
 import {
   seedInitialFirestoreData,
   subscribeRooms,
@@ -25,6 +28,7 @@ import {
   deleteRatePlanFromFirestore,
   resetFirestoreDatabase,
   clearAllFirestoreData,
+  getAllClientsFromFirestore,
 } from './lib/hotelFirebaseService';
 
 const STORAGE_KEYS = {
@@ -32,6 +36,8 @@ const STORAGE_KEYS = {
   GUESTS: 'hotel_notepad_guests_v1',
   RATES: 'hotel_notepad_rates_v1',
   CATEGORIES: 'hotel_notepad_categories_v1',
+  CLIENTS: 'hotel_notepad_clients_v1',
+  CURRENT_CLIENT: 'hotel_notepad_current_client_v1',
 };
 
 export default function App() {
@@ -72,6 +78,27 @@ export default function App() {
     }
   });
 
+  // Client Authentication State
+  const [clients, setClients] = useState<ClientAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
+      return saved ? JSON.parse(saved) : [DEMO_CLIENT];
+    } catch {
+      return [DEMO_CLIENT];
+    }
+  });
+
+  const [currentClient, setCurrentClient] = useState<ClientAccount | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_CLIENT);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const { showAlert } = useDialog();
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('hospedes');
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
@@ -90,6 +117,54 @@ export default function App() {
       setNotification((curr) => (curr === msg ? null : curr));
     }, 2800);
   }, []);
+
+  // Fetch registered clients from Firestore on startup
+  useEffect(() => {
+    getAllClientsFromFirestore().then((cloudClients) => {
+      if (cloudClients && cloudClients.length > 0) {
+        setClients((prev) => {
+          const merged = [...prev];
+          for (const cc of cloudClients) {
+            if (!merged.some((m) => m.id === cc.id || m.accessKey === cc.accessKey)) {
+              merged.push(cc);
+            }
+          }
+          try {
+            localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    });
+  }, []);
+
+  // Auth Handlers
+  const handleLoginSuccess = (client: ClientAccount) => {
+    setCurrentClient(client);
+    try {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_CLIENT, JSON.stringify(client));
+    } catch {}
+    const planName = SUBSCRIPTION_PLANS[client.plan]?.name || 'Padrão';
+    showToast(`BEM-VINDO, ${client.responsibleName.toUpperCase()}! [PLANO: ${planName.toUpperCase()}]`);
+  };
+
+  const handleLogout = () => {
+    setCurrentClient(null);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_CLIENT);
+    } catch {}
+    showToast('Sessão encerrada com sucesso.');
+  };
+
+  const handleSaveNewClient = (newClient: ClientAccount) => {
+    setClients((prev) => {
+      const updated = [newClient, ...prev.filter((c) => c.id !== newClient.id && c.accessKey !== newClient.accessKey)];
+      try {
+        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
 
   // 1. Firebase Initial Seeding & Real-Time Sync Subscriptions
   useEffect(() => {
@@ -377,6 +452,17 @@ export default function App() {
 
   // Handler: Add New Room
   const handleAddNewRoom = async (newRoom: Room) => {
+    if (currentClient) {
+      const plan = SUBSCRIPTION_PLANS[currentClient.plan];
+      if (plan && rooms.length >= plan.roomLimit) {
+        showAlert(
+          `Limite de quartos atingido para o plano ${plan.name.toUpperCase()} (${plan.roomLimitText}).\n\nAtualmente sua propriedade já possui ${rooms.length} quartos cadastrados.\nPara cadastrar mais acomodações, faça upgrade da sua assinatura.`,
+          'LIMITE DO PLANO ATINGIDO'
+        );
+        return;
+      }
+    }
+
     setRooms((prev) => [...prev, newRoom]);
 
     try {
@@ -593,8 +679,19 @@ export default function App() {
     }
   };
 
+  // If user is not authenticated, display login/registration portal first
+  if (!currentClient) {
+    return (
+      <AuthPortal
+        onLoginSuccess={handleLoginSuccess}
+        registeredClients={clients}
+        onSaveClient={handleSaveNewClient}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-white text-black font-mono flex flex-col selection:bg-[#FFFFCC] selection:text-black">
+    <div className="h-screen w-screen overflow-hidden bg-white text-black font-mono flex flex-col selection:bg-[#FFFFCC] selection:text-black">
       {/* Top Windows Notepad Header Bar & Navigation */}
       <WindowHeader
         activeTab={activeTab}
@@ -614,10 +711,12 @@ export default function App() {
         setSearchQuery={setSearchQuery}
         notification={notification}
         isCloudSynced={isCloudSynced}
+        currentClient={currentClient}
+        onLogout={handleLogout}
       />
 
       {/* Main Workspace Area */}
-      <main className="flex-1 overflow-auto bg-white">
+      <main className="flex-1 min-h-0 overflow-hidden bg-white relative">
         {activeTab === 'hospedes' && (
           <GuestRegistration
             guests={guests}

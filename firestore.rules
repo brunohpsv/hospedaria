@@ -14,6 +14,9 @@ service cloud.firestore {
     match /ratePlans/{planId} {
       allow read, write: if true;
     }
+    match /clients/{clientId} {
+      allow read, write: if true;
+    }
     match /{document=**} {
       allow read, write: if true;
     }

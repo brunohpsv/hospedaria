@@ -182,12 +182,19 @@ export const RoomControl: React.FC<RoomControlProps> = ({
   };
 
   return (
-    <div className="p-3 bg-white font-mono text-xs">
+    <div className="h-full flex flex-col p-2 bg-white font-mono text-xs overflow-hidden">
       {/* Top Header */}
-      <div className="border-b border-black pb-2 mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
-          CONTROLE DE QUARTOS
-        </h2>
+      <div className="border-b border-black pb-1.5 mb-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center space-x-2">
+          <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
+            CONTROLE DE QUARTOS
+          </h2>
+          <span className="text-[10px] text-gray-700">
+            Total: <strong>{total}</strong> | Livres:{' '}
+            <strong className="text-black">{libres}</strong> | Ocupados:{' '}
+            <strong className="text-red-600">{ocupados}</strong>
+          </span>
+        </div>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowCategoryModal(true)}
@@ -205,7 +212,7 @@ export const RoomControl: React.FC<RoomControlProps> = ({
       </div>
 
       {/* Filter Toolbar */}
-      <div className="border border-black p-2 mb-3 bg-white space-y-2">
+      <div className="border border-black p-1.5 mb-2 bg-white space-y-1.5 shrink-0">
         {/* Status Filter */}
         <div className="flex items-center space-x-2 flex-wrap">
           <span className="font-bold text-[10px]">STATUS:</span>
@@ -281,7 +288,7 @@ export const RoomControl: React.FC<RoomControlProps> = ({
 
       {/* Cadastro do Quarto Form */}
       {showAddForm && (
-        <div className="border border-black p-3 mb-3 bg-white">
+        <div className="border border-black p-2 mb-2 bg-white shrink-0">
           <div className="border-b border-black pb-1 mb-2 font-bold flex items-center justify-between text-[11px]">
             <span className="bg-[#FFFFCC] px-1 border border-black">CADASTRO DE QUARTO</span>
           </div>
@@ -427,20 +434,20 @@ export const RoomControl: React.FC<RoomControlProps> = ({
         </div>
       )}
 
-      {/* Main Table */}
-      <div className="border border-black overflow-x-auto bg-white p-2">
+      {/* Main Table with Internal Scroll & Sticky Header */}
+      <div className="border border-black overflow-x-auto overflow-y-auto flex-1 min-h-0 bg-white">
         <table className="w-full border-collapse text-left text-[11px]">
-          <thead>
-            <tr className="border-b border-black">
-              <th className="py-1 w-12 font-bold">NUM</th>
-              <th className="py-1 font-bold">CATEGORIA</th>
-              <th className="py-1 font-bold">ÁREA</th>
-              <th className="py-1 font-bold">STATUS</th>
-              <th className="py-1 font-bold">HÓSPEDE</th>
-              <th className="py-1 font-bold">PERÍODO</th>
-              <th className="py-1 text-right font-bold">DIÁRIA (R$)</th>
-              <th className="py-1 text-center font-bold">ALTERAR STATUS</th>
-              <th className="py-1 text-center font-bold">AÇÕES</th>
+          <thead className="sticky top-0 bg-[#FFFFCC] z-10 border-b border-black">
+            <tr>
+              <th className="py-1 px-1.5 w-12 font-bold">NUM</th>
+              <th className="py-1 px-1.5 font-bold">CATEGORIA</th>
+              <th className="py-1 px-1.5 font-bold">ÁREA</th>
+              <th className="py-1 px-1.5 font-bold">STATUS</th>
+              <th className="py-1 px-1.5 font-bold">HÓSPEDE</th>
+              <th className="py-1 px-1.5 font-bold">PERÍODO</th>
+              <th className="py-1 px-1.5 text-right font-bold">DIÁRIA (R$)</th>
+              <th className="py-1 px-1.5 text-center font-bold">ALTERAR STATUS</th>
+              <th className="py-1 px-1.5 text-center font-bold">AÇÕES</th>
             </tr>
           </thead>
           <tbody>

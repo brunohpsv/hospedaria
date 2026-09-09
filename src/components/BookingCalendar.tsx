@@ -130,16 +130,19 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
   };
 
   return (
-    <div className="p-3 bg-white font-mono text-xs">
+    <div className="h-full flex flex-col p-2 bg-white font-mono text-xs overflow-hidden">
       {/* Section Header */}
-      <div className="border-b border-black pb-2 mb-3 flex flex-wrap items-center justify-between">
+      <div className="border-b border-black pb-1.5 mb-2 flex flex-wrap items-center justify-between shrink-0">
         <h2 className="bg-[#FFFFCC] inline-block px-1 text-xs font-bold border border-black">
           CALENDÁRIO DE RESERVAS & OCUPAÇÃO
         </h2>
+        <span className="text-[10px] text-gray-700">
+          Clique na célula para visualizar detalhes ou criar reserva rápida.
+        </span>
       </div>
 
       {/* Month Navigation & Legend Bar */}
-      <div className="border border-black p-2 mb-3 bg-white flex flex-wrap items-center justify-between gap-2">
+      <div className="border border-black p-1.5 mb-2 bg-white flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center space-x-1.5">
           <button
             onClick={prevMonth}
@@ -202,7 +205,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
       {/* Selected Cell Detail Box */}
       {selectedCellInfo && (
-        <div className="border border-black p-2.5 mb-3 bg-[#FFFFCC] flex flex-wrap items-center justify-between gap-3">
+        <div className="border border-black p-2 mb-2 bg-[#FFFFCC] flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="space-y-0.5">
             <div className="font-bold text-xs">
               DETALHES: Quarto {selectedCellInfo.roomNumber} - Data: {selectedCellInfo.dateStr} [
@@ -252,11 +255,11 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
       )}
 
       {/* Monospace Simple Grid Table with Thin Lines */}
-      <div className="border border-black overflow-x-auto bg-white p-2">
+      <div className="border border-black overflow-x-auto overflow-y-auto flex-1 min-h-0 bg-white">
         <table className="w-full border-collapse border border-black text-center text-xs">
           <thead>
             <tr className="border-b border-black">
-              <th className="border border-black px-2 py-1 text-left sticky left-0 bg-[#FFFFCC] z-10 w-32 min-w-[130px] font-bold text-[11px]">
+              <th className="border border-black px-2 py-1 text-left sticky left-0 top-0 bg-[#FFFFCC] z-30 w-32 min-w-[130px] font-bold text-[11px]">
                 QUARTO
               </th>
               {dayList.map((day) => {
@@ -267,7 +270,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                 return (
                   <th
                     key={day}
-                    className={`border border-black px-0.5 py-1 min-w-[26px] text-center ${
+                    className={`border border-black px-0.5 py-1 min-w-[26px] text-center sticky top-0 z-20 ${
                       isToday
                         ? 'bg-[#FFFFCC] font-bold text-red-600'
                         : isWeekend

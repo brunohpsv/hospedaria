@@ -135,7 +135,10 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
   };
 
   const nights = calculateNights();
-  const estimatedTotal = Math.max(0, nights * dailyRate - Number(discount || 0));
+  const subtotal = nights * dailyRate;
+  const discountPercent = Math.min(100, Math.max(0, Number(discount || 0)));
+  const discountValue = (subtotal * discountPercent) / 100;
+  const estimatedTotal = Math.max(0, subtotal - discountValue);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -161,7 +164,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
       checkOut,
       numGuests: Number(numGuests) || 1,
       dailyRate: Number(dailyRate) || 0,
-      discount: Number(discount) || 0,
+      discount: discountPercent,
       totalAmount: estimatedTotal,
       paymentMethod,
       status,
@@ -193,12 +196,25 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
   });
 
   return (
-    <div className="p-3 bg-white font-mono text-xs">
-      {/* Top Section Header */}
-      <div className="border-b border-black pb-2 mb-3 flex items-center justify-between">
-        <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
-          CADASTRO DE HÓSPEDES
-        </h2>
+    <div className="h-full flex flex-col p-2 bg-white font-mono text-xs overflow-hidden">
+      {/* Top Section Header with Quick Stats & Action */}
+      <div className="border-b border-black pb-1.5 mb-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center space-x-2 flex-wrap">
+          <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
+            CADASTRO DE HÓSPEDES
+          </h2>
+          <span className="text-[10px] text-gray-700">
+            Total: <strong>{guests.length}</strong> | Hospedados:{' '}
+            <strong className="text-red-600">
+              {guests.filter((g) => g.status === 'Hospedado').length}
+            </strong>{' '}
+            | Reservas:{' '}
+            <strong>
+              {guests.filter((g) => g.status === 'Confirmada').length}
+            </strong>
+          </span>
+        </div>
+
         <div className="flex items-center space-x-2">
           {formFeedback && (
             <span className="bg-[#FFFFCC] border border-black px-2 py-0.5 text-[10px] font-bold">
@@ -208,17 +224,18 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
           <button
             type="button"
             onClick={handleClearForm}
-            className="px-2 py-0.5 border border-black bg-white hover:bg-[#FFFFCC] cursor-pointer text-[11px]"
+            className="px-2 py-0.5 border border-black bg-white hover:bg-[#FFFFCC] cursor-pointer text-[11px] font-bold"
+            title="Limpar formulário e cadastrar novo (Ctrl+N)"
           >
             [+ Novo Formulário]
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        {/* Left Column: Form */}
-        <div className="lg:col-span-6 border border-black p-3 bg-white">
-          <div className="border-b border-black pb-1 mb-2 font-bold flex items-center justify-between text-[11px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 flex-1 min-h-0 overflow-hidden">
+        {/* Left Column: Form (internally scrollable if needed) */}
+        <div className="lg:col-span-5 border border-black p-2 bg-white flex flex-col h-full overflow-y-auto">
+          <div className="border-b border-black pb-1 mb-2 font-bold flex items-center justify-between text-[11px] shrink-0">
             <span className="bg-[#FFFFCC] px-1 border border-black">
               {id ? `FICHA ATIVA: #${id.slice(-6)}` : 'NOVA ENTRADA'}
             </span>
@@ -400,15 +417,23 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
 
               <div>
                 <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-discount">
-                  DESCONTO (R$):
+                  DESCONTO (%):
                 </label>
-                <input
-                  id="guest-discount"
-                  type="number"
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
-                  className="w-full border border-black px-2 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs"
-                />
+                <div className="relative">
+                  <input
+                    id="guest-discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={discount}
+                    onChange={(e) => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
+                    placeholder="0"
+                    className="w-full border border-black px-2 pr-5 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs"
+                  />
+                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 font-bold text-[10px] text-gray-700 pointer-events-none">
+                    %
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -453,6 +478,11 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
               <div className="text-right">
                 <span className="text-[10px] block">
                   {nights} diária(s) × R$ {dailyRate.toFixed(2)}
+                  {discountPercent > 0 && (
+                    <span className="text-red-700 font-bold ml-1">
+                      (-{discountPercent}%)
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs font-bold block bg-white border border-black px-1.5 py-0.5 mt-0.5 text-center">
                   TOTAL: R$ {estimatedTotal.toFixed(2)}
@@ -508,9 +538,9 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
           </form>
         </div>
 
-        {/* Right Column: Guest List */}
-        <div className="lg:col-span-6 border border-black p-3 bg-white flex flex-col">
-          <div className="flex flex-wrap items-center justify-between border-b border-black pb-1 mb-2 gap-2">
+        {/* Right Column: Guest List with Internal Scroll */}
+        <div className="lg:col-span-7 border border-black p-2 bg-white flex flex-col h-full overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between border-b border-black pb-1 mb-2 gap-2 shrink-0">
             <h3 className="font-bold text-xs">
               RESERVAS & HÓSPEDES ({filteredGuests.length})
             </h3>
@@ -531,9 +561,9 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto flex-1 max-h-[560px] overflow-y-auto">
+          <div className="overflow-x-auto flex-1 min-h-0 overflow-y-auto border border-black">
             <table className="w-full border-collapse text-left text-[11px]">
-              <thead className="border-b border-black sticky top-0 bg-white">
+              <thead className="border-b border-black sticky top-0 bg-[#FFFFCC] z-10">
                 <tr>
                   <th className="py-1 w-10 font-bold">QTO</th>
                   <th className="py-1 font-bold">HÓSPEDE</th>
@@ -642,7 +672,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
             </table>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-black text-[10px] text-gray-700 flex justify-between">
+          <div className="mt-1 pt-1 border-t border-black text-[10px] text-gray-700 flex justify-between shrink-0">
             <span>Total: <strong>{filteredGuests.length}</strong> registro(s)</span>
             <span>Hospedados: <strong>{filteredGuests.filter((g) => g.status === 'Hospedado').length}</strong></span>
           </div>

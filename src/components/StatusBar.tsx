@@ -65,7 +65,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               isCloudSynced ? 'bg-emerald-500' : 'bg-amber-400'
             }`}
           />
-          <span className="text-gray-700">FIREBASE</span>
+          <span className="text-gray-700">{isCloudSynced ? 'CONECTADO' : 'OFFLINE'}</span>
         </span>
 
         <span className="text-gray-400">|</span>
@@ -74,7 +74,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           onClick={() => {
             showConfirm({
               title: 'RESTAURAR DADOS PADRÃO',
-              message: 'Deseja restaurar os dados padrão de demonstração no Firebase?\n\nQuartos, hóspedes e tarifas padrão serão reinseridos.',
+              message: 'Deseja restaurar os dados padrão de demonstração no sistema?\n\nQuartos, hóspedes e tarifas padrão serão reinseridos.',
               confirmText: '[ Restaurar (Enter) ]',
               onConfirm: onResetData,
             });
@@ -89,7 +89,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           onClick={() => {
             showConfirm({
               title: 'AVISO CRÍTICO - ZERAR DADOS',
-              message: 'ATENÇÃO: Deseja realmente ZERAR todas as informações da plataforma no Firebase (quartos, hóspedes e reservas)?\n\nEsta ação limpará permanentemente todos os registros atuais.',
+              message: 'ATENÇÃO: Deseja realmente ZERAR todas as informações da plataforma (quartos, hóspedes e reservas)?\n\nEsta ação limpará permanentemente todos os registros atuais.',
               type: 'danger',
               confirmText: '[ Sim, Zerar Tudo ]',
               onConfirm: onClearData,

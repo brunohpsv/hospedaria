@@ -10,7 +10,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Room, GuestReservation, RatePlan } from '../types';
+import { Room, GuestReservation, RatePlan, ClientAccount } from '../types';
 import { INITIAL_ROOMS, INITIAL_GUESTS, INITIAL_CATEGORIES, INITIAL_RATE_PLANS } from '../mockData';
 
 function cleanDoc<T extends Record<string, any>>(obj: T): Record<string, any> {
@@ -296,4 +296,25 @@ export async function clearAllFirestoreData(): Promise<void> {
   });
 
   await batch.commit();
+}
+
+// Client Accounts Operations (Login & Registration)
+export async function saveClientToFirestore(client: ClientAccount): Promise<void> {
+  if (!db) return;
+  await setDoc(doc(db, 'clients', client.id), cleanDoc(client), { merge: true });
+}
+
+export async function getAllClientsFromFirestore(): Promise<ClientAccount[]> {
+  if (!db) return [];
+  try {
+    const snap = await getDocs(collection(db, 'clients'));
+    const list: ClientAccount[] = [];
+    snap.forEach((docSnap) => {
+      list.push(docSnap.data() as ClientAccount);
+    });
+    return list;
+  } catch (err) {
+    console.error('Erro ao buscar clientes:', err);
+    return [];
+  }
 }

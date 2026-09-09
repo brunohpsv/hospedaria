@@ -50,3 +50,27 @@ export interface RatePlan {
 }
 
 export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario';
+
+export type SubscriptionPlanType = 'basico' | 'profissional' | 'premium' | 'king';
+
+export interface SubscriptionPlanInfo {
+  type: SubscriptionPlanType;
+  name: string;
+  roomLimit: number;
+  roomLimitText: string;
+  pricePerMonth: number;
+  priceText: string;
+  description: string;
+}
+
+export interface ClientAccount {
+  id: string;
+  cpfCnpj: string;
+  email: string;
+  phone: string;
+  responsibleName: string;
+  responsibleCpf: string;
+  plan: SubscriptionPlanType;
+  accessKey: string;
+  createdAt: string;
+}

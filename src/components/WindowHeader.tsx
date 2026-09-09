@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActiveTab, Room } from '../types';
+import { ActiveTab, Room, ClientAccount } from '../types';
+import { SUBSCRIPTION_PLANS } from '../lib/authConstants';
 
 interface WindowHeaderProps {
   activeTab: ActiveTab;
@@ -12,6 +13,8 @@ interface WindowHeaderProps {
   setSearchQuery: (query: string) => void;
   notification: string | null;
   isCloudSynced?: boolean;
+  currentClient?: ClientAccount | null;
+  onLogout?: () => void;
 }
 
 export const WindowHeader: React.FC<WindowHeaderProps> = ({
@@ -24,16 +27,29 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
   setSearchQuery,
   notification,
   isCloudSynced = true,
+  currentClient,
+  onLogout,
 }) => {
+  const planInfo = currentClient ? SUBSCRIPTION_PLANS[currentClient.plan] : null;
+
   return (
-    <header className="bg-white border-b border-black select-none font-mono text-xs">
+    <header className="bg-white border-b border-black select-none font-mono text-xs shrink-0">
       {/* Primary Top Header: Title, Navigation & Search */}
       <div className="flex flex-wrap items-center justify-between border-b border-black px-2 py-1 bg-white gap-2">
         {/* Brand & Main Navigation Tabs */}
         <div className="flex items-center space-x-1 flex-wrap">
-          <span className="font-bold bg-black text-white px-1.5 py-0.5 text-[11px] mr-2">
+          <span className="font-bold bg-black text-white px-1.5 py-0.5 text-[11px] mr-1">
             HOTEL NOTEPAD
           </span>
+
+          {currentClient && (
+            <span
+              className="bg-[#FFFFCC] border border-black px-1.5 py-0.5 text-[10px] font-bold mr-1 hidden sm:inline-block"
+              title={`Responsável: ${currentClient.responsibleName} | CNPJ/CPF: ${currentClient.cpfCnpj}`}
+            >
+              PLANO: {planInfo?.name.toUpperCase()} ({planInfo?.roomLimitText})
+            </span>
+          )}
 
           <button
             onClick={() => setActiveTab('hospedes')}
@@ -80,7 +96,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           </button>
         </div>
 
-        {/* Quick Actions, Search & Cloud Status */}
+        {/* Quick Actions, Search & Status */}
         <div className="flex items-center space-x-2 text-xs flex-wrap">
           {/* Quick Actions */}
           <button
@@ -116,7 +132,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Nome, quarto, doc..."
-              className="w-32 bg-transparent text-xs focus:outline-none"
+              className="w-28 sm:w-32 bg-transparent text-xs focus:outline-none"
             />
             {searchQuery && (
               <button
@@ -132,7 +148,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           {/* Cloud Sync Status Indicator */}
           <div
             className="flex items-center space-x-1 px-1.5 py-0.5 border border-black text-[10px] bg-white"
-            title="Dados sincronizados em nuvem via Firebase Firestore"
+            title="Sincronização de dados em tempo real ativa"
           >
             <span
               className={`w-2 h-2 rounded-full inline-block ${
@@ -140,9 +156,20 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
               }`}
             />
             <span className="font-bold">
-              {isCloudSynced ? 'FIREBASE ON' : 'SINCRONIZANDO'}
+              {isCloudSynced ? 'SISTEMA ONLINE' : 'SINCRONIZANDO'}
             </span>
           </div>
+
+          {/* Logout / Switch User */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-1.5 py-0.5 border border-black bg-white hover:bg-black hover:text-white cursor-pointer text-[10px] font-bold"
+              title="Sair ou trocar de conta"
+            >
+              [SAIR]
+            </button>
+          )}
         </div>
       </div>
 
@@ -156,3 +183,4 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
     </header>
   );
 };
+
