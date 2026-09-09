@@ -25,6 +25,7 @@ function cleanDoc<T extends Record<string, any>>(obj: T): Record<string, any> {
 
 // Initial seeding of Firestore when first installed
 export async function seedInitialFirestoreData(): Promise<void> {
+  if (!db) return;
   try {
     const initSnap = await getDoc(doc(db, '_system', 'init'));
     if (initSnap.exists()) {
@@ -73,6 +74,10 @@ export function subscribeRooms(
   onData: (rooms: Room[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
+  if (!db) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
   return onSnapshot(
     collection(db, 'rooms'),
     (snap) => {
@@ -95,6 +100,10 @@ export function subscribeGuests(
   onData: (guests: GuestReservation[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
+  if (!db) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
   return onSnapshot(
     collection(db, 'guests'),
     (snap) => {
@@ -117,6 +126,10 @@ export function subscribeCategories(
   onData: (categories: string[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
+  if (!db) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
   return onSnapshot(
     collection(db, 'categories'),
     (snap) => {
@@ -138,6 +151,10 @@ export function subscribeRatePlans(
   onData: (plans: RatePlan[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
+  if (!db) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
   return onSnapshot(
     collection(db, 'ratePlans'),
     (snap) => {
@@ -156,24 +173,29 @@ export function subscribeRatePlans(
 
 // Room Operations
 export async function saveRoomToFirestore(room: Room): Promise<void> {
+  if (!db) return;
   await setDoc(doc(db, 'rooms', room.id), cleanDoc(room), { merge: true });
 }
 
 export async function deleteRoomFromFirestore(roomId: string): Promise<void> {
+  if (!db) return;
   await deleteDoc(doc(db, 'rooms', roomId));
 }
 
 // Guest Operations
 export async function saveGuestToFirestore(guest: GuestReservation): Promise<void> {
+  if (!db) return;
   await setDoc(doc(db, 'guests', guest.id), cleanDoc(guest), { merge: true });
 }
 
 export async function deleteGuestFromFirestore(guestId: string): Promise<void> {
+  if (!db) return;
   await deleteDoc(doc(db, 'guests', guestId));
 }
 
 // Category Operations
 export async function saveCategoryToFirestore(categoryName: string): Promise<void> {
+  if (!db) return;
   await setDoc(doc(db, 'categories', categoryName), {
     id: categoryName,
     name: categoryName,
@@ -181,20 +203,24 @@ export async function saveCategoryToFirestore(categoryName: string): Promise<voi
 }
 
 export async function deleteCategoryFromFirestore(categoryName: string): Promise<void> {
+  if (!db) return;
   await deleteDoc(doc(db, 'categories', categoryName));
 }
 
 // Rate Plan Operations
 export async function saveRatePlanToFirestore(plan: RatePlan): Promise<void> {
+  if (!db) return;
   await setDoc(doc(db, 'ratePlans', plan.id), cleanDoc(plan), { merge: true });
 }
 
 export async function deleteRatePlanFromFirestore(planId: string): Promise<void> {
+  if (!db) return;
   await deleteDoc(doc(db, 'ratePlans', planId));
 }
 
 // Complete Database Reset to Original Default Data
 export async function resetFirestoreDatabase(): Promise<void> {
+  if (!db) return;
   const batch = writeBatch(db);
 
   // Clear existing
@@ -234,6 +260,7 @@ export async function resetFirestoreDatabase(): Promise<void> {
 
 // Wipe / Clear All Platform Information (Zerar Dados)
 export async function clearAllFirestoreData(): Promise<void> {
+  if (!db) return;
   const batch = writeBatch(db);
 
   // Clear all rooms, guests, categories and rates

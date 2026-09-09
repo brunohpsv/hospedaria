@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import configJson from '../../firebase-applet-config.json';
 
@@ -12,10 +12,16 @@ const firebaseConfig = {
   messagingSenderId: configJson.messagingSenderId,
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
 
-export const db: Firestore = configJson.firestoreDatabaseId
-  ? getFirestore(app, configJson.firestoreDatabaseId)
-  : getFirestore(app);
+try {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  db = configJson.firestoreDatabaseId
+    ? getFirestore(app, configJson.firestoreDatabaseId)
+    : getFirestore(app);
+} catch (err) {
+  console.warn('Firebase não pôde ser inicializado no ambiente atual (modo offline ativo):', err);
+}
 
-export { app, firebaseConfig };
+export { app, db, firebaseConfig };

@@ -5,10 +5,8 @@ import fs from 'fs';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
-  const isGithubPages = process.env.GITHUB_PAGES === 'true' || process.env.GITHUB_ACTIONS === 'true';
-
   return {
-    base: isGithubPages ? '/hospedaria/' : './',
+    base: './',
     plugins: [
       react(),
       tailwindcss(),
