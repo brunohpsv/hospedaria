@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus } from '../types';
+import { useDialog } from '../lib/dialogContext';
 
 interface RoomControlProps {
   rooms: Room[];
@@ -30,6 +31,7 @@ export const RoomControl: React.FC<RoomControlProps> = ({
   onQuickCheckOut,
   searchQuery,
 }) => {
+  const { showAlert, showConfirm } = useDialog();
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterCategory, setFilterCategory] = useState<string>('TODOS');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -97,11 +99,11 @@ export const RoomControl: React.FC<RoomControlProps> = ({
   const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNumber.trim()) {
-      alert('Informe o número ou código do quarto!');
+      showAlert('Por favor, informe o número ou código identificador do quarto.', 'CAMPO OBRIGATÓRIO');
       return;
     }
     if (rooms.some((r) => r.number.toLowerCase() === newNumber.trim().toLowerCase())) {
-      alert('Já existe um quarto cadastrado com esse número!');
+      showAlert('Já existe um quarto cadastrado com esse número/código!', 'CÓDIGO DUPLICADO');
       return;
     }
 
@@ -123,11 +125,11 @@ export const RoomControl: React.FC<RoomControlProps> = ({
   const handleCreateInlineCategory = () => {
     const trimmed = inlineCategoryName.trim();
     if (!trimmed) {
-      alert('Digite o nome da nova categoria!');
+      showAlert('Digite o nome da nova categoria de quarto.', 'CAMPO OBRIGATÓRIO');
       return;
     }
     if (categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-      alert('Esta categoria já existe!');
+      showAlert('Esta categoria já existe no sistema!', 'CATEGORIA EXISTENTE');
       return;
     }
     onAddCategory(trimmed);
@@ -140,11 +142,11 @@ export const RoomControl: React.FC<RoomControlProps> = ({
     e.preventDefault();
     const trimmed = modalCategoryName.trim();
     if (!trimmed) {
-      alert('Digite o nome da categoria!');
+      showAlert('Digite o nome da categoria que deseja criar.', 'CAMPO OBRIGATÓRIO');
       return;
     }
     if (categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
-      alert('Esta categoria já existe!');
+      showAlert('Esta categoria já existe no sistema!', 'CATEGORIA EXISTENTE');
       return;
     }
     onAddCategory(trimmed);
@@ -153,7 +155,7 @@ export const RoomControl: React.FC<RoomControlProps> = ({
 
   const handleDeleteCategoryPrompt = (catName: string) => {
     if (categories.length <= 1) {
-      alert('O hotel precisa de pelo menos uma categoria ativa!');
+      showAlert('O hotel precisa de pelo menos uma categoria ativa no sistema.', 'AÇÃO NÃO PERMITIDA');
       return;
     }
     const countRoomsWithCategory = rooms.filter(
@@ -162,17 +164,20 @@ export const RoomControl: React.FC<RoomControlProps> = ({
 
     if (countRoomsWithCategory > 0) {
       const remaining = categories.filter((c) => c !== catName)[0] || 'Standard';
-      const confirmed = window.confirm(
-        `A categoria "${catName}" possui ${countRoomsWithCategory} quarto(s) vinculado(s).\n\nAo excluir, estes quartos serão reclassificados para "${remaining}".\n\nDeseja confirmar a exclusão?`
-      );
-      if (confirmed) {
-        onDeleteCategory(catName);
-      }
+      showConfirm({
+        title: 'EXCLUIR CATEGORIA EM USO',
+        message: `A categoria "${catName}" possui ${countRoomsWithCategory} quarto(s) vinculado(s).\n\nAo excluir, estes quartos serão automaticamente reclassificados para "${remaining}".\n\nDeseja confirmar a exclusão?`,
+        type: 'danger',
+        confirmText: '[ Sim, Reclassificar e Excluir ]',
+        onConfirm: () => onDeleteCategory(catName),
+      });
     } else {
-      const confirmed = window.confirm(`Excluir a categoria "${catName}"?`);
-      if (confirmed) {
-        onDeleteCategory(catName);
-      }
+      showConfirm({
+        title: 'EXCLUIR CATEGORIA',
+        message: `Deseja realmente excluir a categoria "${catName}"?`,
+        confirmText: '[ Excluir ]',
+        onConfirm: () => onDeleteCategory(catName),
+      });
     }
   };
 
@@ -620,9 +625,13 @@ export const RoomControl: React.FC<RoomControlProps> = ({
                         {isFree && onDeleteRoom && (
                           <button
                             onClick={() => {
-                              if (window.confirm(`Excluir o quarto ${r.number}?`)) {
-                                onDeleteRoom(r.id);
-                              }
+                              showConfirm({
+                                title: 'EXCLUIR QUARTO',
+                                message: `Tem certeza que deseja excluir o quarto ${r.number} (${r.type})?\n\nEsta operação removerá o quarto do sistema e do Firebase.`,
+                                type: 'danger',
+                                confirmText: '[ Sim, Excluir Quarto ]',
+                                onConfirm: () => onDeleteRoom(r.id),
+                              });
                             }}
                             className="px-1 border border-black bg-white hover:bg-red-600 hover:text-white text-gray-500 cursor-pointer text-[10px]"
                             title={`Excluir quarto ${r.number}`}

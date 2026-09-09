@@ -54,7 +54,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
                 : 'bg-white hover:bg-[#FFFFCC]'
             }`}
           >
-            QUARTOS (F4)
+            QUARTOS (F3)
           </button>
 
           <button
@@ -65,7 +65,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
                 : 'bg-white hover:bg-[#FFFFCC]'
             }`}
           >
-            VALORES
+            VALORES (F4)
           </button>
 
           <button
@@ -76,7 +76,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
                 : 'bg-white hover:bg-[#FFFFCC]'
             }`}
           >
-            CALENDÁRIO
+            CALENDÁRIO (F5)
           </button>
         </div>
 
@@ -86,7 +86,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           <button
             onClick={onNewGuest}
             className="px-2 py-0.5 border border-black bg-[#FFFFCC] hover:bg-[#ffff99] font-bold cursor-pointer text-[11px]"
-            title="Novo Hóspede (F1)"
+            title="Novo Hóspede (Ctrl+N)"
           >
             + NOVO HÓSPEDE
           </button>
@@ -102,9 +102,9 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           <button
             onClick={onOpenShortcuts}
             className="px-2 py-0.5 border border-black bg-white hover:bg-[#FFFFCC] cursor-pointer text-[11px]"
-            title="Lista de atalhos de teclado (Esc)"
+            title="Lista de atalhos de teclado (F1)"
           >
-            ATALHOS
+            ATALHOS (F1)
           </button>
 
           {/* Search Box */}

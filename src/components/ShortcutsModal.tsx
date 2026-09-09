@@ -1,11 +1,11 @@
 import React from 'react';
 
 interface ShortcutsModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
 }
 
-export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
+export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen = true, onClose }) => {
   if (!isOpen) return null;
 
   const shortcuts = [

@@ -685,14 +685,20 @@ export default function App() {
       {/* TXT Voucher Export Modal */}
       {isTxtVoucherOpen && (
         <TxtVoucherModal
+          isOpen={isTxtVoucherOpen}
           guest={voucherGuest || guests[0]}
+          guests={guests}
+          rooms={rooms}
           onClose={() => setIsTxtVoucherOpen(false)}
         />
       )}
 
       {/* Keyboard Shortcuts Modal */}
       {isShortcutsOpen && (
-        <ShortcutsModal onClose={() => setIsShortcutsOpen(false)} />
+        <ShortcutsModal
+          isOpen={isShortcutsOpen}
+          onClose={() => setIsShortcutsOpen(false)}
+        />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveTab, Room } from '../types';
+import { useDialog } from '../lib/dialogContext';
 
 interface StatusBarProps {
   activeTab: ActiveTab;
@@ -17,6 +18,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   isCloudSynced = true,
 }) => {
   const [time, setTime] = useState<string>('');
+  const { showConfirm } = useDialog();
 
   useEffect(() => {
     const update = () => {
@@ -70,9 +72,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
         <button
           onClick={() => {
-            if (window.confirm('Deseja restaurar os dados padrão do sistema no Firebase?')) {
-              onResetData();
-            }
+            showConfirm({
+              title: 'RESTAURAR DADOS PADRÃO',
+              message: 'Deseja restaurar os dados padrão de demonstração no Firebase?\n\nQuartos, hóspedes e tarifas padrão serão reinseridos.',
+              confirmText: '[ Restaurar (Enter) ]',
+              onConfirm: onResetData,
+            });
           }}
           className="text-gray-600 hover:text-black hover:bg-[#FFFFCC] px-1 cursor-pointer font-bold"
           title="Restaurar dados padrão de exemplo"
@@ -82,13 +87,13 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
         <button
           onClick={() => {
-            if (
-              window.confirm(
-                'ATENÇÃO: Deseja realmente ZERAR todas as informações da plataforma no Firebase (quartos, hóspedes e reservas)? Esta ação limpará todos os registros.'
-              )
-            ) {
-              onClearData();
-            }
+            showConfirm({
+              title: 'AVISO CRÍTICO - ZERAR DADOS',
+              message: 'ATENÇÃO: Deseja realmente ZERAR todas as informações da plataforma no Firebase (quartos, hóspedes e reservas)?\n\nEsta ação limpará permanentemente todos os registros atuais.',
+              type: 'danger',
+              confirmText: '[ Sim, Zerar Tudo ]',
+              onConfirm: onClearData,
+            });
           }}
           className="text-red-600 hover:text-white hover:bg-red-600 px-1 cursor-pointer font-bold"
           title="Zerar todas as informações da plataforma"

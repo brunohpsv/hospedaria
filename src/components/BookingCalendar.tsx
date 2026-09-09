@@ -14,9 +14,14 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
   onSelectGuest,
   onQuickBookRoom,
 }) => {
-  // Year and Month state (Defaulting to September 2026 based on mock data)
-  const [currentYear, setCurrentYear] = useState(2026);
-  const [currentMonth, setCurrentMonth] = useState(8); // 0-indexed: 8 is September
+  // Year and Month state
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth();
+  const todayDay = today.getDate();
+
+  const [currentYear, setCurrentYear] = useState(todayYear);
+  const [currentMonth, setCurrentMonth] = useState(todayMonth);
   const [selectedCellInfo, setSelectedCellInfo] = useState<{
     roomNumber: string;
     dateStr: string;
@@ -64,8 +69,8 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
   };
 
   const goToToday = () => {
-    setCurrentYear(2026);
-    setCurrentMonth(8); // September
+    setCurrentYear(todayYear);
+    setCurrentMonth(todayMonth);
     setSelectedCellInfo(null);
   };
 
@@ -109,7 +114,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
         dateStr,
         status: 'MANUTENÇÃO',
       });
-    } else if (room.status === 'limpeza' && day === 4) {
+    } else if (room.status === 'limpeza' && (currentYear === todayYear && currentMonth === todayMonth && day === todayDay)) {
       setSelectedCellInfo({
         roomNumber: room.number,
         dateStr,
@@ -257,7 +262,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
               {dayList.map((day) => {
                 const dayOfWeek = getDayOfWeekName(day);
                 const isWeekend = dayOfWeek === 'SÁB' || dayOfWeek === 'DOM';
-                const isToday = currentYear === 2026 && currentMonth === 8 && day === 4;
+                const isToday = currentYear === todayYear && currentMonth === todayMonth && day === todayDay;
 
                 return (
                   <th
@@ -296,7 +301,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
                   const guest = getGuestForRoomAndDate(room.number, dateStr);
                   const isMaintenance = room.status === 'manutenção';
-                  const isCleaningToday = room.status === 'limpeza' && day === 4;
+                  const isCleaningToday = room.status === 'limpeza' && (currentYear === todayYear && currentMonth === todayMonth && day === todayDay);
 
                   let cellText = '..';
                   let cellClass =

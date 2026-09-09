@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GuestReservation, Room } from '../types';
+import { useDialog } from '../lib/dialogContext';
 
 interface GuestRegistrationProps {
   guests: GuestReservation[];
@@ -44,6 +45,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [formFeedback, setFormFeedback] = useState<string | null>(null);
 
+  const { showAlert, showConfirm } = useDialog();
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize dates to today and +2 days if empty
@@ -125,10 +127,10 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
 
   const calculateNights = () => {
     if (!checkIn || !checkOut) return 1;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
+    const start = new Date(checkIn + 'T00:00:00');
+    const end = new Date(checkOut + 'T00:00:00');
     const diffTime = end.getTime() - start.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 1;
   };
 
@@ -138,12 +140,12 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!name.trim()) {
-      alert('Informe o nome do hóspede!');
+      showAlert('Por favor, informe o nome completo do hóspede.', 'CAMPO OBRIGATÓRIO');
       nameInputRef.current?.focus();
       return;
     }
     if (!roomNumber) {
-      alert('Selecione um quarto para o hóspede!');
+      showAlert('Por favor, selecione um quarto para este hóspede.', 'QUARTO NÃO SELECIONADO');
       return;
     }
 
@@ -617,9 +619,13 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
                             )}
                             <button
                               onClick={() => {
-                                if (confirm(`Excluir hóspede ${g.name}?`)) {
-                                  onDeleteGuest(g.id);
-                                }
+                                showConfirm({
+                                  title: 'EXCLUIR REGISTRO DE HÓSPEDE',
+                                  message: `Tem certeza que deseja remover permanentemente o registro do hóspede "${g.name}"?\n\nQuarto associado: ${g.roomNumber}`,
+                                  type: 'danger',
+                                  confirmText: '[ Sim, Excluir ]',
+                                  onConfirm: () => onDeleteGuest(g.id),
+                                });
                               }}
                               className="px-1 border border-black bg-white hover:bg-red-600 hover:text-white text-[10px] cursor-pointer"
                               title="Excluir"
