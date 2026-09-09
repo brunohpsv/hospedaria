@@ -4,28 +4,25 @@ Sistema ultra minimalista para gestão de hotéis, pousadas e vilas no estilo Bl
 
 ---
 
-## 🚀 Como Publicar no GitHub Pages
+## 🚀 Como Publicar no GitHub Pages (Sem usar GitHub Actions)
 
-O projeto foi simplificado com caminhos relativos universais (`./`), funcionando perfeitamente no GitHub Pages.
+O projeto agora gera automaticamente a pasta `/docs` pronta para publicação direta no GitHub Pages, sem consumir minutos do GitHub Actions.
 
-### Opção 1: Automático via GitHub Actions (Recomendado)
-1. Envie o código para o seu repositório:
+### Passo a Passo:
+1. Envie o código para o seu repositório no GitHub:
    ```bash
    git add .
-   git commit -m "Atualizacoes do sistema"
+   git commit -m "Publicar versao em /docs"
    git push origin main
    ```
 2. No seu repositório no GitHub:
-   - Vá em **Settings** > **Pages**.
-   - Em **Source**, selecione **GitHub Actions**.
-   - O fluxo configurado em `.github/workflows/deploy.yml` fará o build e publicação automaticamente.
+   - Vá em **Settings** (Configurações) > **Pages** (no menu lateral).
+   - Em **Source** (Origem), escolha **"Deploy from a branch"**.
+   - Em **Branch**, selecione `main` (ou `master`).
+   - No campo da pasta ao lado da branch, selecione **/docs** e clique em **Save** (Salvar).
+3. Pronto! Em instantes seu site estará no ar em:
+   `https://brunohpsv.github.io/hospedaria/`
 
-### Opção 2: Manual via Linha de Comando (gh-pages)
-Você também pode publicar diretamente executando:
-```bash
-npm run deploy
-```
-Esse comando compila o projeto e envia a pasta `dist` para a branch `gh-pages`.
 
 ---
 
