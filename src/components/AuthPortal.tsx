@@ -145,12 +145,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
     onSaveClient(newClient);
     setIsSubmitting(false);
 
-    showAlert(
-      `Cadastro realizado com sucesso!\n\nCliente: ${newClient.responsibleName}\nPlano: ${SUBSCRIPTION_PLANS[newClient.plan].name} (${SUBSCRIPTION_PLANS[newClient.plan].priceText})\nChave de Acesso: ${newClient.accessKey}\n\nGuarde sua Chave de Acesso para os próximos logins.`,
-      'ACESSO LIBERADO'
-    );
-
-    // Auto log in with newly created client
+    // Entra diretamente no sistema conforme solicitado ("cadastrando entra no sistema")
     onLoginSuccess(newClient);
   };
 
@@ -266,21 +261,55 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                 </div>
               </form>
 
-              {/* Demo Account Quick Access Card */}
-              <div className="border border-dotted border-black p-3 bg-gray-50 text-[11px] flex items-center justify-between">
-                <div>
-                  <span className="font-bold block">Chave de Demonstração / Teste:</span>
-                  <span className="bg-white border border-black px-1.5 py-0.5 font-bold tracking-wider inline-block mt-0.5">
-                    Hosp123!
-                  </span>
+              {/* Demo Account & Registered Establishments Quick Access Card */}
+              <div className="border border-dotted border-black p-3 bg-gray-50 text-[11px] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold block">Chave de Demonstração / Teste:</span>
+                    <span className="bg-white border border-black px-1.5 py-0.5 font-bold tracking-wider inline-block mt-0.5">
+                      Hosp123!
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleQuickDemoLogin}
+                    className="px-2 py-1 border border-black bg-white hover:bg-[#FFFFCC] font-bold cursor-pointer text-[10px]"
+                  >
+                    [ Usar Chave Demo ]
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleQuickDemoLogin}
-                  className="px-2 py-1 border border-black bg-white hover:bg-[#FFFFCC] font-bold cursor-pointer text-[10px]"
-                >
-                  [ Usar Chave Demo ]
-                </button>
+
+                {registeredClients.filter((c) => c.accessKey !== DEMO_CLIENT.accessKey).length > 0 && (
+                  <div className="pt-2 border-t border-gray-300">
+                    <span className="font-bold block text-[10px] text-gray-700 mb-1">
+                      CLIENTES / ESTABELECIMENTOS CADASTRADOS:
+                    </span>
+                    <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                      {registeredClients
+                        .filter((c) => c.accessKey !== DEMO_CLIENT.accessKey)
+                        .map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex items-center justify-between bg-white border border-black px-2 py-1 text-[10px]"
+                          >
+                            <div className="truncate mr-2">
+                              <strong>{c.responsibleName}</strong> ({SUBSCRIPTION_PLANS[c.plan]?.name.toUpperCase()})
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLoginAccessKey(c.accessKey);
+                                onLoginSuccess(c);
+                              }}
+                              className="px-1.5 py-0.5 bg-[#FFFFCC] hover:bg-black hover:text-white border border-black font-bold cursor-pointer text-[9px] shrink-0"
+                            >
+                              [ Entrar ]
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

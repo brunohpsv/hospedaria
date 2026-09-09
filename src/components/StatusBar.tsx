@@ -8,6 +8,7 @@ interface StatusBarProps {
   onResetData: () => void;
   onClearData: () => void;
   isCloudSynced?: boolean;
+  onLogout?: () => void;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -16,6 +17,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   onResetData,
   onClearData,
   isCloudSynced = true,
+  onLogout,
 }) => {
   const [time, setTime] = useState<string>('');
   const { showConfirm } = useDialog();
@@ -100,6 +102,20 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         >
           [ZERAR DADOS]
         </button>
+
+        {onLogout && (
+          <>
+            <span className="text-gray-400">|</span>
+            <button
+              id="status-btn-logout"
+              onClick={onLogout}
+              className="bg-red-600 hover:bg-black text-white px-2 py-0.5 border border-black cursor-pointer font-bold text-[10px]"
+              title="Encerrar sessão e voltar à tela inicial de login"
+            >
+              [ SAIR DO SISTEMA ]
+            </button>
+          </>
+        )}
 
         <span className="text-gray-400">|</span>
 

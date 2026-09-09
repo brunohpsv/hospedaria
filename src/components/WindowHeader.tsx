@@ -160,14 +160,15 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
             </span>
           </div>
 
-          {/* Logout / Switch User */}
+          {/* Logout / Switch User Button */}
           {onLogout && (
             <button
+              id="top-btn-logout"
               onClick={onLogout}
-              className="px-1.5 py-0.5 border border-black bg-white hover:bg-black hover:text-white cursor-pointer text-[10px] font-bold"
-              title="Sair ou trocar de conta"
+              className="px-2.5 py-1 border border-black bg-red-600 hover:bg-black text-white cursor-pointer text-xs font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 shrink-0 flex items-center space-x-1"
+              title="Encerrar sessão e voltar à tela inicial de login"
             >
-              [SAIR]
+              <span>[ SAIR ]</span>
             </button>
           )}
         </div>

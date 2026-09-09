@@ -18,6 +18,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen = true, o
     { key: 'Ctrl + S', desc: 'Salvar hóspede atual / persistir dados no sistema local' },
     { key: 'Ctrl + F', desc: 'Focar na barra de busca rápida superior' },
     { key: 'F7', desc: 'Abrir modal de emissão de Comprovante TXT do Bloco de Notas' },
+    { key: 'Alt + Q', desc: 'Sair do sistema e retornar à tela inicial de Login' },
     { key: 'Esc', desc: 'Fechar modais abertos ou limpar formulário de digitação' },
     { key: 'TAB', desc: 'Avançar para o próximo campo de formulário com rapidez' },
     { key: 'Shift + TAB', desc: 'Voltar para o campo de formulário anterior' },

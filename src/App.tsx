@@ -78,7 +78,7 @@ export default function App() {
     }
   });
 
-  // Client Authentication State
+  // Client Authentication State: Starts as null so the initial page is ALWAYS the Login page
   const [clients, setClients] = useState<ClientAccount[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
@@ -88,14 +88,7 @@ export default function App() {
     }
   });
 
-  const [currentClient, setCurrentClient] = useState<ClientAccount | null>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_CLIENT);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentClient, setCurrentClient] = useState<ClientAccount | null>(null);
 
   const { showAlert } = useDialog();
 
@@ -281,6 +274,9 @@ export default function App() {
         e.preventDefault();
         const searchInput = document.getElementById('top-search');
         searchInput?.focus();
+      } else if (e.altKey && e.key.toLowerCase() === 'q') {
+        e.preventDefault();
+        handleLogout();
       } else if (e.key === 'Escape') {
         if (isShortcutsOpen) setIsShortcutsOpen(false);
         if (isTxtVoucherOpen) setIsTxtVoucherOpen(false);
@@ -772,13 +768,14 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom Status Bar with RESTAURAR DADOS and ZERAR DADOS */}
+      {/* Bottom Status Bar with RESTAURAR DADOS, ZERAR DADOS and SAIR */}
       <StatusBar
         activeTab={activeTab}
         rooms={rooms}
         onResetData={handleResetData}
         onClearData={handleClearData}
         isCloudSynced={isCloudSynced}
+        onLogout={handleLogout}
       />
 
       {/* TXT Voucher Export Modal */}
