@@ -76,6 +76,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "establishmentName": { "type": "string" },
         "cpfCnpj": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
@@ -86,6 +87,35 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "cpfCnpj", "email", "responsibleName", "plan", "accessKey"]
+    },
+    "workplaces": {
+      "title": "Workplaces",
+      "description": "Locais e setores de trabalho cadastrados (ex: cozinha, recepção)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "employees": {
+      "title": "Employees",
+      "description": "Funcionários do estabelecimento, suas funções, contatos, salários e datas de admissão",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "workplace": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "salary": { "type": "number" },
+        "hireDate": { "type": "string" },
+        "document": { "type": "string" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "workplace", "salary", "hireDate", "status"]
     }
   }
 }

@@ -83,6 +83,7 @@ export function validateAccessKey(key: string): {
 
 export const DEMO_CLIENT: ClientAccount = {
   id: 'client-demo-default',
+  establishmentName: 'Pousada Recanto dos Pássaros',
   cpfCnpj: '12.345.678/0001-90',
   email: 'gerencia@hotelrecanto.com.br',
   phone: '(11) 98765-4321',

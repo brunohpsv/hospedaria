@@ -43,6 +43,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     quartos: 'QUARTOS',
     valores: 'VALORES & TARIFÁRIO',
     calendario: 'CALENDÁRIO',
+    funcionarios: 'FUNCIONÁRIOS & EQUIPE',
+    empresa: 'DADOS DO ESTABELECIMENTO',
   };
 
   const occupied = rooms.filter((r) => r.status === 'ocupado').length;

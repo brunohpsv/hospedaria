@@ -1,4 +1,4 @@
-import { Room, GuestReservation, RatePlan } from './types';
+import { Room, GuestReservation, RatePlan, Employee } from './types';
 
 export const INITIAL_CATEGORIES: string[] = [
   'Standard',
@@ -368,3 +368,70 @@ export const INITIAL_RATE_PLANS: RatePlan[] = [
     minNights: 3,
   },
 ];
+
+export const INITIAL_WORKPLACES: string[] = [
+  'Cozinha',
+  'Recepção',
+  'Governança / Camareiras',
+  'Manutenção',
+  'Restaurante / Bar',
+  'Administração & Gerência',
+  'Portaria & Segurança',
+  'Jardinagem & Lazer',
+];
+
+export const INITIAL_EMPLOYEES: Employee[] = [
+  {
+    id: 'emp-01',
+    name: 'Maria Aparecida Silva',
+    role: 'Cozinheira Chefe',
+    workplace: 'Cozinha',
+    phone: '(11) 98765-1122',
+    email: 'maria.cozinha@hotelrecanto.com.br',
+    salary: 2850,
+    hireDate: '2024-03-15',
+    document: '234.567.890-12',
+    status: 'ativo',
+    notes: 'Responsável pelo café da manhã colonial e cardápio de almoço.',
+  },
+  {
+    id: 'emp-02',
+    name: 'Lucas Mendonça',
+    role: 'Recepcionista Noturno',
+    workplace: 'Recepção',
+    phone: '(11) 97654-3344',
+    email: 'lucas.recepcao@hotelrecanto.com.br',
+    salary: 2450,
+    hireDate: '2024-08-01',
+    document: '345.678.901-23',
+    status: 'ativo',
+    notes: 'Turno das 22h às 06h. Fluente em inglês e espanhol.',
+  },
+  {
+    id: 'emp-03',
+    name: 'Joana Prado Lima',
+    role: 'Camareira Líder',
+    workplace: 'Governança / Camareiras',
+    phone: '(11) 96543-5566',
+    email: 'joana.governanca@hotelrecanto.com.br',
+    salary: 2200,
+    hireDate: '2023-11-10',
+    document: '456.789.012-34',
+    status: 'ativo',
+    notes: 'Coordenação de higienização de quartos e controle do enxoval.',
+  },
+  {
+    id: 'emp-04',
+    name: 'José Carlos Nogueira',
+    role: 'Técnico de Manutenção Predial',
+    workplace: 'Manutenção',
+    phone: '(11) 95432-7788',
+    email: 'manutencao@hotelrecanto.com.br',
+    salary: 2650,
+    hireDate: '2024-01-20',
+    document: '567.890.123-45',
+    status: 'ativo',
+    notes: 'Instalações elétricas, hidráulica e reparos gerais nas acomodações.',
+  },
+];
+

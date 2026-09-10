@@ -24,6 +24,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Register form state
+  const [establishmentName, setEstablishmentName] = useState<string>('');
   const [cpfCnpj, setCpfCnpj] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
@@ -77,6 +78,10 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!establishmentName.trim()) {
+      showAlert('Informe o nome do estabelecimento (pousada, hotel, resort, etc.).', 'CAMPO OBRIGATÓRIO');
+      return;
+    }
     if (!cpfCnpj.trim()) {
       showAlert('Informe o CPF ou CNPJ da empresa/estabelecimento.', 'CAMPO OBRIGATÓRIO');
       return;
@@ -126,6 +131,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
 
     const newClient: ClientAccount = {
       id: `client-${Date.now()}`,
+      establishmentName: establishmentName.trim(),
       cpfCnpj: cpfCnpj.trim(),
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
@@ -293,7 +299,13 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                             className="flex items-center justify-between bg-white border border-black px-2 py-1 text-[10px]"
                           >
                             <div className="truncate mr-2">
-                              <strong>{c.responsibleName}</strong> ({SUBSCRIPTION_PLANS[c.plan]?.name.toUpperCase()})
+                              <strong>{c.establishmentName || c.responsibleName}</strong>
+                              {c.establishmentName && (
+                                <span className="text-gray-600 ml-1">({c.responsibleName})</span>
+                              )}{' '}
+                              <span className="font-bold text-gray-800">
+                                [{SUBSCRIPTION_PLANS[c.plan]?.name.toUpperCase()}]
+                              </span>
                             </div>
                             <button
                               type="button"
@@ -335,6 +347,21 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                 <div className="lg:col-span-6 border border-black p-3 bg-white space-y-2.5">
                   <div className="border-b border-black pb-1 font-bold text-xs bg-[#FFFFCC] px-1 border border-black inline-block">
                     1. DADOS DO ESTABELECIMENTO & CONTATO
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-0.5 text-[10px]" htmlFor="reg-establishment-name">
+                      NOME DO ESTABELECIMENTO (HOTEL / POUSADA / CHALÉ):*
+                    </label>
+                    <input
+                      id="reg-establishment-name"
+                      type="text"
+                      required
+                      value={establishmentName}
+                      onChange={(e) => setEstablishmentName(e.target.value)}
+                      placeholder="Ex: Pousada Recanto dos Pássaros"
+                      className="w-full border border-black px-2 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs font-bold"
+                    />
                   </div>
 
                   <div>

@@ -10,8 +10,15 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Room, GuestReservation, RatePlan, ClientAccount } from '../types';
-import { INITIAL_ROOMS, INITIAL_GUESTS, INITIAL_CATEGORIES, INITIAL_RATE_PLANS } from '../mockData';
+import { Room, GuestReservation, RatePlan, ClientAccount, Employee } from '../types';
+import {
+  INITIAL_ROOMS,
+  INITIAL_GUESTS,
+  INITIAL_CATEGORIES,
+  INITIAL_RATE_PLANS,
+  INITIAL_WORKPLACES,
+  INITIAL_EMPLOYEES,
+} from '../mockData';
 
 function cleanDoc<T extends Record<string, any>>(obj: T): Record<string, any> {
   const cleaned: Record<string, any> = {};
@@ -54,6 +61,16 @@ export async function seedInitialFirestoreData(): Promise<void> {
       // Seed rate plans
       for (const plan of INITIAL_RATE_PLANS) {
         batch.set(doc(db, 'ratePlans', plan.id), cleanDoc(plan));
+      }
+
+      // Seed workplaces
+      for (const wp of INITIAL_WORKPLACES) {
+        batch.set(doc(db, 'workplaces', wp), { id: wp, name: wp });
+      }
+
+      // Seed employees
+      for (const emp of INITIAL_EMPLOYEES) {
+        batch.set(doc(db, 'employees', emp.id), cleanDoc(emp));
       }
 
       batch.set(doc(db, '_system', 'init'), {
@@ -218,23 +235,102 @@ export async function deleteRatePlanFromFirestore(planId: string): Promise<void>
   await deleteDoc(doc(db, 'ratePlans', planId));
 }
 
+// Workplace (Setores de Trabalho) Operations
+export function subscribeWorkplaces(
+  onData: (workplaces: string[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  if (!db) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
+  return onSnapshot(
+    collection(db, 'workplaces'),
+    (snap) => {
+      const items: string[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.name) items.push(data.name);
+      });
+      onData(items.length > 0 ? items : INITIAL_WORKPLACES);
+    },
+    (err) => {
+      console.error('Erro no listener de locais de trabalho:', err);
+      onError?.(err);
+    }
+  );
+}
+
+export async function saveWorkplaceToFirestore(workplaceName: string): Promise<void> {
+  if (!db) return;
+  await setDoc(doc(db, 'workplaces', workplaceName), {
+    id: workplaceName,
+    name: workplaceName,
+  });
+}
+
+export async function deleteWorkplaceFromFirestore(workplaceName: string): Promise<void> {
+  if (!db) return;
+  await deleteDoc(doc(db, 'workplaces', workplaceName));
+}
+
+// Employee Operations
+export function subscribeEmployees(
+  onData: (employees: Employee[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  if (!db) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
+  return onSnapshot(
+    collection(db, 'employees'),
+    (snap) => {
+      const items: Employee[] = [];
+      snap.forEach((docSnap) => {
+        items.push(docSnap.data() as Employee);
+      });
+      items.sort((a, b) => a.name.localeCompare(b.name));
+      onData(items);
+    },
+    (err) => {
+      console.error('Erro no listener de funcionários:', err);
+      onError?.(err);
+    }
+  );
+}
+
+export async function saveEmployeeToFirestore(employee: Employee): Promise<void> {
+  if (!db) return;
+  await setDoc(doc(db, 'employees', employee.id), cleanDoc(employee), { merge: true });
+}
+
+export async function deleteEmployeeFromFirestore(employeeId: string): Promise<void> {
+  if (!db) return;
+  await deleteDoc(doc(db, 'employees', employeeId));
+}
+
 // Complete Database Reset to Original Default Data
 export async function resetFirestoreDatabase(): Promise<void> {
   if (!db) return;
   const batch = writeBatch(db);
 
   // Clear existing
-  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap] = await Promise.all([
+  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap] = await Promise.all([
     getDocs(collection(db, 'rooms')),
     getDocs(collection(db, 'guests')),
     getDocs(collection(db, 'categories')),
     getDocs(collection(db, 'ratePlans')),
+    getDocs(collection(db, 'workplaces')),
+    getDocs(collection(db, 'employees')),
   ]);
 
   roomsSnap.forEach((d) => batch.delete(d.ref));
   guestsSnap.forEach((d) => batch.delete(d.ref));
   categoriesSnap.forEach((d) => batch.delete(d.ref));
   ratesSnap.forEach((d) => batch.delete(d.ref));
+  workplacesSnap.forEach((d) => batch.delete(d.ref));
+  employeesSnap.forEach((d) => batch.delete(d.ref));
 
   // Re-seed original data
   for (const r of INITIAL_ROOMS) {
@@ -248,6 +344,12 @@ export async function resetFirestoreDatabase(): Promise<void> {
   }
   for (const p of INITIAL_RATE_PLANS) {
     batch.set(doc(db, 'ratePlans', p.id), cleanDoc(p));
+  }
+  for (const w of INITIAL_WORKPLACES) {
+    batch.set(doc(db, 'workplaces', w), { id: w, name: w });
+  }
+  for (const e of INITIAL_EMPLOYEES) {
+    batch.set(doc(db, 'employees', e.id), cleanDoc(e));
   }
 
   batch.set(doc(db, '_system', 'init'), {
@@ -263,18 +365,22 @@ export async function clearAllFirestoreData(): Promise<void> {
   if (!db) return;
   const batch = writeBatch(db);
 
-  // Clear all rooms, guests, categories and rates
-  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap] = await Promise.all([
+  // Clear all rooms, guests, categories, rates, workplaces and employees
+  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap] = await Promise.all([
     getDocs(collection(db, 'rooms')),
     getDocs(collection(db, 'guests')),
     getDocs(collection(db, 'categories')),
     getDocs(collection(db, 'ratePlans')),
+    getDocs(collection(db, 'workplaces')),
+    getDocs(collection(db, 'employees')),
   ]);
 
   roomsSnap.forEach((d) => batch.delete(d.ref));
   guestsSnap.forEach((d) => batch.delete(d.ref));
   categoriesSnap.forEach((d) => batch.delete(d.ref));
   ratesSnap.forEach((d) => batch.delete(d.ref));
+  workplacesSnap.forEach((d) => batch.delete(d.ref));
+  employeesSnap.forEach((d) => batch.delete(d.ref));
 
   // Retain a base clean accommodation category so that the user can immediately start adding rooms
   const defaultCat = 'Standard';
@@ -289,6 +395,11 @@ export async function clearAllFirestoreData(): Promise<void> {
     extraPersonRate: 70,
     minNights: 1,
   });
+
+  // Retain base workplaces
+  for (const wp of ['Cozinha', 'Recepção', 'Governança', 'Manutenção']) {
+    batch.set(doc(db, 'workplaces', wp), { id: wp, name: wp });
+  }
 
   batch.set(doc(db, '_system', 'init'), {
     initialized: true,

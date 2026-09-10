@@ -1,11 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ActiveTab, Room, GuestReservation, RatePlan, RoomStatus, ClientAccount } from './types';
-import { INITIAL_ROOMS, INITIAL_GUESTS, INITIAL_RATE_PLANS, INITIAL_CATEGORIES } from './mockData';
+import { ActiveTab, Room, GuestReservation, RatePlan, RoomStatus, ClientAccount, Employee } from './types';
+import {
+  INITIAL_ROOMS,
+  INITIAL_GUESTS,
+  INITIAL_RATE_PLANS,
+  INITIAL_CATEGORIES,
+  INITIAL_WORKPLACES,
+  INITIAL_EMPLOYEES,
+} from './mockData';
 import { WindowHeader } from './components/WindowHeader';
 import { GuestRegistration } from './components/GuestRegistration';
 import { RoomControl } from './components/RoomControl';
 import { RatePlans } from './components/RatePlans';
 import { BookingCalendar } from './components/BookingCalendar';
+import { StaffManagement } from './components/StaffManagement';
+import { EstablishmentSettings } from './components/EstablishmentSettings';
 import { TxtVoucherModal } from './components/TxtVoucherModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { StatusBar } from './components/StatusBar';
@@ -18,6 +27,8 @@ import {
   subscribeGuests,
   subscribeCategories,
   subscribeRatePlans,
+  subscribeWorkplaces,
+  subscribeEmployees,
   saveRoomToFirestore,
   deleteRoomFromFirestore,
   saveGuestToFirestore,
@@ -26,6 +37,11 @@ import {
   deleteCategoryFromFirestore,
   saveRatePlanToFirestore,
   deleteRatePlanFromFirestore,
+  saveWorkplaceToFirestore,
+  deleteWorkplaceFromFirestore,
+  saveEmployeeToFirestore,
+  deleteEmployeeFromFirestore,
+  saveClientToFirestore,
   resetFirestoreDatabase,
   clearAllFirestoreData,
   getAllClientsFromFirestore,
@@ -36,6 +52,8 @@ const STORAGE_KEYS = {
   GUESTS: 'hotel_notepad_guests_v1',
   RATES: 'hotel_notepad_rates_v1',
   CATEGORIES: 'hotel_notepad_categories_v1',
+  WORKPLACES: 'hotel_notepad_workplaces_v1',
+  EMPLOYEES: 'hotel_notepad_employees_v1',
   CLIENTS: 'hotel_notepad_clients_v1',
   CURRENT_CLIENT: 'hotel_notepad_current_client_v1',
 };
@@ -75,6 +93,24 @@ export default function App() {
       return saved ? JSON.parse(saved) : INITIAL_RATE_PLANS;
     } catch {
       return INITIAL_RATE_PLANS;
+    }
+  });
+
+  const [workplaces, setWorkplaces] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.WORKPLACES);
+      return saved ? JSON.parse(saved) : INITIAL_WORKPLACES;
+    } catch {
+      return INITIAL_WORKPLACES;
+    }
+  });
+
+  const [employees, setEmployees] = useState<Employee[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
+      return saved ? JSON.parse(saved) : INITIAL_EMPLOYEES;
+    } catch {
+      return INITIAL_EMPLOYEES;
     }
   });
 
@@ -165,6 +201,8 @@ export default function App() {
     let unsubGuests: () => void = () => {};
     let unsubCategories: () => void = () => {};
     let unsubRatePlans: () => void = () => {};
+    let unsubWorkplaces: () => void = () => {};
+    let unsubEmployees: () => void = () => {};
 
     const initFirebase = async () => {
       try {
@@ -225,6 +263,34 @@ export default function App() {
             setIsCloudSynced(false);
           }
         );
+
+        unsubWorkplaces = subscribeWorkplaces(
+          (fireWps) => {
+            setWorkplaces(fireWps && fireWps.length > 0 ? fireWps : INITIAL_WORKPLACES);
+            try {
+              localStorage.setItem(STORAGE_KEYS.WORKPLACES, JSON.stringify(fireWps));
+            } catch {}
+            setIsCloudSynced(true);
+          },
+          (err) => {
+            console.error('Erro workplaces sync:', err);
+            setIsCloudSynced(false);
+          }
+        );
+
+        unsubEmployees = subscribeEmployees(
+          (fireEmps) => {
+            setEmployees(fireEmps);
+            try {
+              localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(fireEmps));
+            } catch {}
+            setIsCloudSynced(true);
+          },
+          (err) => {
+            console.error('Erro employees sync:', err);
+            setIsCloudSynced(false);
+          }
+        );
       } catch (err) {
         console.error('Falha ao inicializar Firebase:', err);
         setIsCloudSynced(false);
@@ -238,6 +304,8 @@ export default function App() {
       unsubGuests();
       unsubCategories();
       unsubRatePlans();
+      unsubWorkplaces();
+      unsubEmployees();
     };
   }, []);
 
@@ -259,6 +327,12 @@ export default function App() {
       } else if (e.key === 'F5' || (e.altKey && e.key === '4')) {
         e.preventDefault();
         setActiveTab('calendario');
+      } else if (e.key === 'F6' || (e.altKey && e.key === '5')) {
+        e.preventDefault();
+        setActiveTab('funcionarios');
+      } else if (e.key === 'F8' || (e.altKey && e.key === '6')) {
+        e.preventDefault();
+        setActiveTab('empresa');
       } else if (e.key === 'F7') {
         e.preventDefault();
         setIsTxtVoucherOpen(true);
@@ -627,6 +701,86 @@ export default function App() {
     setIsTxtVoucherOpen(true);
   };
 
+  // Handler: Save / Update Employee
+  const handleSaveEmployee = async (employee: Employee) => {
+    setEmployees((prev) => {
+      const exists = prev.some((e) => e.id === employee.id);
+      return exists ? prev.map((e) => (e.id === employee.id ? employee : e)) : [employee, ...prev];
+    });
+
+    try {
+      await saveEmployeeToFirestore(employee);
+      showToast(`FUNCIONÁRIO "${employee.name}" SALVO NO FIREBASE!`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO SALVAR FUNCIONÁRIO NO FIREBASE!');
+    }
+  };
+
+  // Handler: Delete Employee
+  const handleDeleteEmployee = async (employeeId: string) => {
+    const emp = employees.find((e) => e.id === employeeId);
+    setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+
+    try {
+      await deleteEmployeeFromFirestore(employeeId);
+      showToast(`FUNCIONÁRIO "${emp?.name || employeeId}" EXCLUÍDO!`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO EXCLUIR FUNCIONÁRIO NO FIREBASE!');
+    }
+  };
+
+  // Handler: Add Workplace
+  const handleAddWorkplace = async (workplaceName: string) => {
+    if (workplaces.includes(workplaceName)) return;
+    setWorkplaces((prev) => [...prev, workplaceName]);
+
+    try {
+      await saveWorkplaceToFirestore(workplaceName);
+      showToast(`LOCAL "${workplaceName}" CADASTRADO NO FIREBASE!`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO CADASTRAR LOCAL NO FIREBASE!');
+    }
+  };
+
+  // Handler: Delete Workplace
+  const handleDeleteWorkplace = async (workplaceName: string) => {
+    setWorkplaces((prev) => prev.filter((w) => w !== workplaceName));
+
+    try {
+      await deleteWorkplaceFromFirestore(workplaceName);
+      showToast(`LOCAL "${workplaceName}" EXCLUÍDO!`);
+      return true;
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO EXCLUIR LOCAL NO FIREBASE!');
+      return false;
+    }
+  };
+
+  // Handler: Update Client Account & Establishment Info
+  const handleUpdateClient = async (updatedClient: ClientAccount) => {
+    setCurrentClient(updatedClient);
+    setClients((prev) =>
+      prev.map((c) => (c.cpfCnpj === updatedClient.cpfCnpj ? updatedClient : c))
+    );
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_CLIENT, JSON.stringify(updatedClient));
+      const updatedClients = clients.map((c) =>
+        c.cpfCnpj === updatedClient.cpfCnpj ? updatedClient : c
+      );
+      localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(updatedClients));
+      await saveClientToFirestore(updatedClient);
+      showToast('DADOS DO ESTABELECIMENTO ATUALIZADOS NO FIREBASE!');
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO ATUALIZAR ESTABELECIMENTO NO FIREBASE!');
+    }
+  };
+
   // Reset to original default mock data in Firebase and Local
   const handleResetData = async () => {
     try {
@@ -635,10 +789,14 @@ export default function App() {
       setGuests(INITIAL_GUESTS);
       setRatePlans(INITIAL_RATE_PLANS);
       setCategories(INITIAL_CATEGORIES);
+      setWorkplaces(INITIAL_WORKPLACES);
+      setEmployees(INITIAL_EMPLOYEES);
       localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(INITIAL_ROOMS));
       localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(INITIAL_GUESTS));
       localStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(INITIAL_RATE_PLANS));
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
+      localStorage.setItem(STORAGE_KEYS.WORKPLACES, JSON.stringify(INITIAL_WORKPLACES));
+      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(INITIAL_EMPLOYEES));
       showToast('DADOS PADRÃO RESTAURADOS NO FIREBASE!');
     } catch (err) {
       console.error(err);
@@ -652,6 +810,8 @@ export default function App() {
       await clearAllFirestoreData();
       setRooms([]);
       setGuests([]);
+      setEmployees([]);
+      setWorkplaces(['Recepção']);
       const standardRatePlan: RatePlan = {
         id: 'rate-standard',
         roomType: 'Standard',
@@ -668,6 +828,8 @@ export default function App() {
       localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify([standardRatePlan]));
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(['Standard']));
+      localStorage.setItem(STORAGE_KEYS.WORKPLACES, JSON.stringify(['Recepção']));
+      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify([]));
       showToast('TODAS AS INFORMAÇÕES FORAM ZERADAS NO FIREBASE!');
     } catch (err) {
       console.error(err);
@@ -764,6 +926,30 @@ export default function App() {
               setSelectedGuestIdForEdit(null);
               showToast(`Nova Reserva: Quarto ${roomNumber} a partir de ${date}`);
             }}
+          />
+        )}
+
+        {activeTab === 'funcionarios' && (
+          <StaffManagement
+            employees={employees}
+            workplaces={workplaces}
+            onSaveEmployee={handleSaveEmployee}
+            onDeleteEmployee={handleDeleteEmployee}
+            onAddWorkplace={handleAddWorkplace}
+            onDeleteWorkplace={handleDeleteWorkplace}
+            searchQuery={searchQuery}
+            establishmentName={currentClient?.establishmentName}
+          />
+        )}
+
+        {activeTab === 'empresa' && (
+          <EstablishmentSettings
+            currentClient={currentClient}
+            onUpdateClient={handleUpdateClient}
+            rooms={rooms}
+            employees={employees}
+            guests={guests}
+            onLogout={handleLogout}
           />
         )}
       </main>

@@ -43,8 +43,19 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           </span>
 
           {currentClient && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('empresa')}
+              className="bg-white hover:bg-[#FFFFCC] border border-black px-1.5 py-0.5 text-[10px] font-bold mr-1 cursor-pointer truncate max-w-[220px]"
+              title={`Clique para editar os dados de: ${currentClient.establishmentName || currentClient.responsibleName}`}
+            >
+              🏨 {currentClient.establishmentName || 'MEU ESTABELECIMENTO'}
+            </button>
+          )}
+
+          {currentClient && (
             <span
-              className="bg-[#FFFFCC] border border-black px-1.5 py-0.5 text-[10px] font-bold mr-1 hidden sm:inline-block"
+              className="bg-[#FFFFCC] border border-black px-1.5 py-0.5 text-[10px] font-bold mr-1 hidden md:inline-block"
               title={`Responsável: ${currentClient.responsibleName} | CNPJ/CPF: ${currentClient.cpfCnpj}`}
             >
               PLANO: {planInfo?.name.toUpperCase()} ({planInfo?.roomLimitText})
@@ -93,6 +104,28 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
             }`}
           >
             CALENDÁRIO (F5)
+          </button>
+
+          <button
+            onClick={() => setActiveTab('funcionarios')}
+            className={`px-2 py-0.5 border border-black cursor-pointer text-xs ${
+              activeTab === 'funcionarios'
+                ? 'bg-[#FFFFCC] font-bold'
+                : 'bg-white hover:bg-[#FFFFCC]'
+            }`}
+          >
+            FUNCIONÁRIOS (F6)
+          </button>
+
+          <button
+            onClick={() => setActiveTab('empresa')}
+            className={`px-2 py-0.5 border border-black cursor-pointer text-xs ${
+              activeTab === 'empresa'
+                ? 'bg-[#FFFFCC] font-bold'
+                : 'bg-white hover:bg-[#FFFFCC]'
+            }`}
+          >
+            ESTABELECIMENTO (F8)
           </button>
         </div>
 

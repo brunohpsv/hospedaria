@@ -49,7 +49,7 @@ export interface RatePlan {
   minNights: number;
 }
 
-export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario';
+export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario' | 'funcionarios' | 'empresa';
 
 export type SubscriptionPlanType = 'basico' | 'profissional' | 'premium' | 'king';
 
@@ -65,6 +65,7 @@ export interface SubscriptionPlanInfo {
 
 export interface ClientAccount {
   id: string;
+  establishmentName: string;
   cpfCnpj: string;
   email: string;
   phone: string;
@@ -74,3 +75,25 @@ export interface ClientAccount {
   accessKey: string;
   createdAt: string;
 }
+
+export type EmployeeStatus = 'ativo' | 'férias' | 'afastado' | 'desligado';
+
+export interface Employee {
+  id: string;
+  name: string;
+  role: string;
+  workplace: string;
+  phone: string;
+  email: string;
+  salary: number;
+  hireDate: string;
+  document?: string;
+  status: EmployeeStatus;
+  notes?: string;
+}
+
+export interface Workplace {
+  id: string;
+  name: string;
+}
+
