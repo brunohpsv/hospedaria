@@ -279,7 +279,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                 </div>
               </form>
 
-              {/* Demo Account & Registered Establishments Quick Access Card */}
+              {/* Demo Account Quick Access Card */}
               <div className="border border-dotted border-black p-3 bg-gray-50 text-[11px] space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div>
@@ -296,44 +296,6 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
                     [ Usar Chave Demo ]
                   </button>
                 </div>
-
-                {registeredClients.filter((c) => c.accessKey !== DEMO_CLIENT.accessKey).length > 0 && (
-                  <div className="pt-2 border-t border-gray-300">
-                    <span className="font-bold block text-[10px] text-gray-700 mb-1">
-                      CLIENTES / ESTABELECIMENTOS CADASTRADOS:
-                    </span>
-                    <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                      {registeredClients
-                        .filter((c) => c.accessKey !== DEMO_CLIENT.accessKey)
-                        .map((c) => (
-                          <div
-                            key={c.id}
-                            className="flex items-center justify-between bg-white border border-black px-2 py-1 text-[10px]"
-                          >
-                            <div className="truncate mr-2">
-                              <strong>{c.establishmentName || c.responsibleName}</strong>
-                              {c.establishmentName && (
-                                <span className="text-gray-600 ml-1">({c.responsibleName})</span>
-                              )}{' '}
-                              <span className="font-bold text-gray-800">
-                                [{SUBSCRIPTION_PLANS[c.plan]?.name.toUpperCase()}]
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setLoginAccessKey(c.accessKey);
-                                onLoginSuccess(c);
-                              }}
-                              className="px-1.5 py-0.5 bg-[#FFFFCC] hover:bg-black hover:text-white border border-black font-bold cursor-pointer text-[9px] shrink-0"
-                            >
-                              [ Entrar ]
-                            </button>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
