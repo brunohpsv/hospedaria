@@ -4,26 +4,24 @@ Sistema ultra minimalista para gestão de hotéis, pousadas e vilas no estilo Bl
 
 ---
 
-## 🚀 Como Publicar no GitHub Pages com BRANCH (100% Gratuito)
+## 🚀 Publicação no GitHub Pages (100% Grátis e Instantânea)
 
-O projeto está configurado para publicar através da branch **`gh-pages`** (sem necessidade da pasta `/docs`).
+### Por que ocorria a demora ("Current status: updating_pages")?
+O status `"updating_pages"` acontece quando o GitHub Pages usa o robô antigo de branches que entra em uma fila de espera lenta nos servidores do GitHub.
 
-### Opção 1: Automático pelo GitHub (Recomendado)
-Sempre que você enviar o código para a branch `main` ou `master`:
-1. O fluxo do **GitHub Actions** (`.github/workflows/deploy.yml`) compilará o projeto automaticamente e criará/atualizará a branch **`gh-pages`** com os arquivos finais compilados.
-2. No seu repositório no GitHub:
-   - Vá em **Settings** (Configurações) > **Pages** (no menu lateral esquerdo).
-   - Em **Build and deployment** > **Source**, selecione **"Deploy from a branch"**.
-   - Em **Branch**, selecione **`gh-pages`** e a pasta **/ (root)**.
-   - Clique em **Save** (Salvar).
-3. Seu sistema estará funcionando perfeitamente, sem tela em branco!
+### ⚡ Como ter Deploy Ultra Rápido (15 a 25 segundos) sem travar:
+1. No seu repositório no GitHub:
+   - Vá em **Settings** (Configurações) > **Pages** (menu lateral).
+   - Em **Build and deployment** > **Source**, altere de *"Deploy from a branch"* para **"GitHub Actions"**.
+2. Pronto! O arquivo `.github/workflows/deploy.yml` fará o upload direto para a CDN do GitHub Pages sem entrar na fila lenta do robô antigo.
 
-### Opção 2: Pelo Terminal / Linha de Comando
-Se preferir publicar diretamente do seu computador:
-```bash
-npm run deploy
-```
-Esse comando compila a aplicação (`npm run build`) e envia os arquivos prontos diretamente para a branch `gh-pages` do seu repositório no GitHub.
+### 🌿 Se preferir continuar usando a branch `gh-pages`:
+- Em **Source**, selecione **"Deploy from a branch"**.
+- Em **Branch**, selecione **`gh-pages`** e a pasta **/ (root)**.
+- Ou rode no seu computador a qualquer momento:
+  ```bash
+  npm run deploy
+  ```
 
 
 ---
