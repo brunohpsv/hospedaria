@@ -25,6 +25,18 @@ export default defineConfig(() => {
 
           // 2. Create .nojekyll to prevent GitHub Pages Jekyll processing
           fs.writeFileSync(nojekyllDist, '');
+
+          // 3. Keep docs/ updated as fallback so GitHub never fails with "No such file or directory: docs"
+          const docsDir = path.resolve(__dirname, 'docs');
+          try {
+            if (fs.existsSync(docsDir)) {
+              fs.rmSync(docsDir, { recursive: true, force: true });
+            }
+            fs.cpSync(distDir, docsDir, { recursive: true });
+            fs.writeFileSync(path.join(docsDir, '.nojekyll'), '');
+          } catch (e) {
+            console.error('Error syncing to docs fallback:', e);
+          }
         },
       },
     ],
