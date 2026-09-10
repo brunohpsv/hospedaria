@@ -3,20 +3,24 @@ import { ClientAccount, SubscriptionPlanType } from '../types';
 import { SUBSCRIPTION_PLANS, validateAccessKey, DEMO_CLIENT } from '../lib/authConstants';
 import { saveClientToFirestore, getAllClientsFromFirestore } from '../lib/hotelFirebaseService';
 import { useDialog } from '../lib/dialogContext';
+import { AdminPortalModal } from './AdminPortalModal';
 
 interface AuthPortalProps {
   onLoginSuccess: (client: ClientAccount) => void;
   registeredClients: ClientAccount[];
   onSaveClient: (client: ClientAccount) => void;
+  onUpdateClientsList?: (updatedList: ClientAccount[]) => void;
 }
 
 export const AuthPortal: React.FC<AuthPortalProps> = ({
   onLoginSuccess,
   registeredClients,
   onSaveClient,
+  onUpdateClientsList,
 }) => {
   const { showAlert } = useDialog();
   const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
 
   // Login form state
   const [loginAccessKey, setLoginAccessKey] = useState<string>('');
@@ -56,6 +60,14 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
     );
 
     if (found) {
+      if (found.status === 'suspenso') {
+        setLoginError('CONTA SUSPENSA! Este cadastro foi suspenso pela administração.');
+        showAlert(
+          `O acesso para "${found.establishmentName.toUpperCase()}" encontra-se SUSPENSO pelo Administrador.\n\nPara reativar a assinatura ou obter mais informações, entre em contato com o suporte ou administração do sistema.`,
+          'ACESSO SUSPENSO'
+        );
+        return;
+      }
       onLoginSuccess(found);
       return;
     }
@@ -595,6 +607,36 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
           <span>DADOS PROTEGIDOS POR CRIPTOGRAFIA</span>
         </div>
       </div>
+
+      {/* Hidden / Semi-transparent Admin Access Button (Bottom-Right) */}
+      <div className="fixed bottom-1 right-2 z-40">
+        <button
+          type="button"
+          onClick={() => setIsAdminModalOpen(true)}
+          title="Painel Administrativo Mestre"
+          className="opacity-20 hover:opacity-100 transition-opacity duration-200 text-[10px] text-gray-500 hover:text-black font-mono px-1.5 py-0.5 rounded cursor-pointer select-none bg-transparent hover:bg-white/90 border border-transparent hover:border-gray-400"
+        >
+          [ adm ]
+        </button>
+      </div>
+
+      {/* Admin Portal Modal */}
+      {isAdminModalOpen && (
+        <AdminPortalModal
+          isOpen={isAdminModalOpen}
+          onClose={() => setIsAdminModalOpen(false)}
+          clients={registeredClients}
+          onUpdateClientsList={(updated) => {
+            if (onUpdateClientsList) {
+              onUpdateClientsList(updated);
+            }
+          }}
+          onLoginAsClient={(client) => {
+            setIsAdminModalOpen(false);
+            onLoginSuccess(client);
+          }}
+        />
+      )}
     </div>
   );
 };

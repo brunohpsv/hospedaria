@@ -7,6 +7,7 @@ import {
   INITIAL_CATEGORIES,
   INITIAL_WORKPLACES,
   INITIAL_EMPLOYEES,
+  STARTER_CLEAN_ROOMS,
 } from './mockData';
 import { WindowHeader } from './components/WindowHeader';
 import { GuestRegistration } from './components/GuestRegistration';
@@ -22,7 +23,7 @@ import { AuthPortal } from './components/AuthPortal';
 import { SUBSCRIPTION_PLANS, DEMO_CLIENT } from './lib/authConstants';
 import { useDialog } from './lib/dialogContext';
 import {
-  seedInitialFirestoreData,
+  seedClientFirestoreData,
   subscribeRooms,
   subscribeGuests,
   subscribeCategories,
@@ -48,73 +49,17 @@ import {
 } from './lib/hotelFirebaseService';
 
 const STORAGE_KEYS = {
-  ROOMS: 'hotel_notepad_rooms_v1',
-  GUESTS: 'hotel_notepad_guests_v1',
-  RATES: 'hotel_notepad_rates_v1',
-  CATEGORIES: 'hotel_notepad_categories_v1',
-  WORKPLACES: 'hotel_notepad_workplaces_v1',
-  EMPLOYEES: 'hotel_notepad_employees_v1',
-  CLIENTS: 'hotel_notepad_clients_v1',
-  CURRENT_CLIENT: 'hotel_notepad_current_client_v1',
+  CLIENTS: 'hotel_notepad_clients_v2',
+  CURRENT_CLIENT: 'hotel_notepad_current_client_v2',
 };
 
+// Isolated storage keys per establishment client ID
+function getTenantKey(clientId: string, key: string): string {
+  return `hotel_notepad_${clientId}_${key}_v2`;
+}
+
 export default function App() {
-  // Local state with initial fallback
-  const [rooms, setRooms] = useState<Room[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ROOMS);
-      return saved ? JSON.parse(saved) : INITIAL_ROOMS;
-    } catch {
-      return INITIAL_ROOMS;
-    }
-  });
-
-  const [categories, setCategories] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
-    } catch {
-      return INITIAL_CATEGORIES;
-    }
-  });
-
-  const [guests, setGuests] = useState<GuestReservation[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.GUESTS);
-      return saved ? JSON.parse(saved) : INITIAL_GUESTS;
-    } catch {
-      return INITIAL_GUESTS;
-    }
-  });
-
-  const [ratePlans, setRatePlans] = useState<RatePlan[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.RATES);
-      return saved ? JSON.parse(saved) : INITIAL_RATE_PLANS;
-    } catch {
-      return INITIAL_RATE_PLANS;
-    }
-  });
-
-  const [workplaces, setWorkplaces] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.WORKPLACES);
-      return saved ? JSON.parse(saved) : INITIAL_WORKPLACES;
-    } catch {
-      return INITIAL_WORKPLACES;
-    }
-  });
-
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
-      return saved ? JSON.parse(saved) : INITIAL_EMPLOYEES;
-    } catch {
-      return INITIAL_EMPLOYEES;
-    }
-  });
-
-  // Client Authentication State: Starts as null so the initial page is ALWAYS the Login page
+  // Client accounts directory
   const [clients, setClients] = useState<ClientAccount[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CLIENTS);
@@ -124,7 +69,16 @@ export default function App() {
     }
   });
 
+  // Current authenticated client (Starts as null so initial page is always the login/registration)
   const [currentClient, setCurrentClient] = useState<ClientAccount | null>(null);
+
+  // Dynamic tenant state - strictly scoped to currentClient
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES);
+  const [guests, setGuests] = useState<GuestReservation[]>([]);
+  const [ratePlans, setRatePlans] = useState<RatePlan[]>(INITIAL_RATE_PLANS);
+  const [workplaces, setWorkplaces] = useState<string[]>(INITIAL_WORKPLACES);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const { showAlert } = useDialog();
 
@@ -147,7 +101,7 @@ export default function App() {
     }, 2800);
   }, []);
 
-  // Fetch registered clients from Firestore on startup
+  // Fetch registered client accounts from Firestore on startup
   useEffect(() => {
     getAllClientsFromFirestore().then((cloudClients) => {
       if (cloudClients && cloudClients.length > 0) {
@@ -195,8 +149,49 @@ export default function App() {
     });
   };
 
-  // 1. Firebase Initial Seeding & Real-Time Sync Subscriptions
+  const handleUpdateClientsList = (updatedList: ClientAccount[]) => {
+    setClients(updatedList);
+    try {
+      localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(updatedList));
+    } catch {}
+  };
+
+  // Multi-tenancy: load & subscribe strictly to the active client's isolated subcollections
   useEffect(() => {
+    if (!currentClient) {
+      setRooms([]);
+      setGuests([]);
+      setEmployees([]);
+      return;
+    }
+
+    const clientId = currentClient.id;
+    const isDemo = clientId === 'client-demo-default';
+
+    // 1. Immediately populate from local cache for instant zero-latency UI
+    try {
+      const savedRooms = localStorage.getItem(getTenantKey(clientId, 'ROOMS'));
+      setRooms(savedRooms ? JSON.parse(savedRooms) : (isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS));
+
+      const savedGuests = localStorage.getItem(getTenantKey(clientId, 'GUESTS'));
+      setGuests(savedGuests ? JSON.parse(savedGuests) : (isDemo ? INITIAL_GUESTS : []));
+
+      const savedCats = localStorage.getItem(getTenantKey(clientId, 'CATEGORIES'));
+      setCategories(savedCats ? JSON.parse(savedCats) : INITIAL_CATEGORIES);
+
+      const savedRates = localStorage.getItem(getTenantKey(clientId, 'RATES'));
+      setRatePlans(savedRates ? JSON.parse(savedRates) : INITIAL_RATE_PLANS);
+
+      const savedWps = localStorage.getItem(getTenantKey(clientId, 'WORKPLACES'));
+      setWorkplaces(savedWps ? JSON.parse(savedWps) : INITIAL_WORKPLACES);
+
+      const savedEmps = localStorage.getItem(getTenantKey(clientId, 'EMPLOYEES'));
+      setEmployees(savedEmps ? JSON.parse(savedEmps) : (isDemo ? INITIAL_EMPLOYEES : []));
+    } catch (err) {
+      console.error('Erro ao ler cache local do cliente:', err);
+    }
+
+    // 2. Real-time subscriptions to this client's Firestore subcollections
     let unsubRooms: () => void = () => {};
     let unsubGuests: () => void = () => {};
     let unsubCategories: () => void = () => {};
@@ -204,100 +199,106 @@ export default function App() {
     let unsubWorkplaces: () => void = () => {};
     let unsubEmployees: () => void = () => {};
 
-    const initFirebase = async () => {
+    const initTenantCloud = async () => {
       try {
-        await seedInitialFirestoreData();
+        await seedClientFirestoreData(clientId, isDemo);
 
         unsubRooms = subscribeRooms(
+          clientId,
           (fireRooms) => {
             setRooms(fireRooms);
             try {
-              localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(fireRooms));
+              localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(fireRooms));
             } catch {}
             setIsCloudSynced(true);
           },
           (err) => {
-            console.error('Erro rooms sync:', err);
+            console.error(`Erro rooms sync (${clientId}):`, err);
             setIsCloudSynced(false);
           }
         );
 
         unsubGuests = subscribeGuests(
+          clientId,
           (fireGuests) => {
             setGuests(fireGuests);
             try {
-              localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(fireGuests));
+              localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify(fireGuests));
             } catch {}
             setIsCloudSynced(true);
           },
           (err) => {
-            console.error('Erro guests sync:', err);
+            console.error(`Erro guests sync (${clientId}):`, err);
             setIsCloudSynced(false);
           }
         );
 
         unsubCategories = subscribeCategories(
+          clientId,
           (fireCats) => {
             setCategories(fireCats && fireCats.length > 0 ? fireCats : ['Standard']);
             try {
-              localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(fireCats));
+              localStorage.setItem(getTenantKey(clientId, 'CATEGORIES'), JSON.stringify(fireCats));
             } catch {}
             setIsCloudSynced(true);
           },
           (err) => {
-            console.error('Erro categories sync:', err);
+            console.error(`Erro categories sync (${clientId}):`, err);
             setIsCloudSynced(false);
           }
         );
 
         unsubRatePlans = subscribeRatePlans(
+          clientId,
           (fireRates) => {
             setRatePlans(fireRates);
             try {
-              localStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(fireRates));
+              localStorage.setItem(getTenantKey(clientId, 'RATES'), JSON.stringify(fireRates));
             } catch {}
             setIsCloudSynced(true);
           },
           (err) => {
-            console.error('Erro ratePlans sync:', err);
+            console.error(`Erro ratePlans sync (${clientId}):`, err);
             setIsCloudSynced(false);
           }
         );
 
         unsubWorkplaces = subscribeWorkplaces(
+          clientId,
           (fireWps) => {
             setWorkplaces(fireWps && fireWps.length > 0 ? fireWps : INITIAL_WORKPLACES);
             try {
-              localStorage.setItem(STORAGE_KEYS.WORKPLACES, JSON.stringify(fireWps));
+              localStorage.setItem(getTenantKey(clientId, 'WORKPLACES'), JSON.stringify(fireWps));
             } catch {}
             setIsCloudSynced(true);
           },
           (err) => {
-            console.error('Erro workplaces sync:', err);
+            console.error(`Erro workplaces sync (${clientId}):`, err);
             setIsCloudSynced(false);
           }
         );
 
         unsubEmployees = subscribeEmployees(
+          clientId,
           (fireEmps) => {
             setEmployees(fireEmps);
             try {
-              localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(fireEmps));
+              localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify(fireEmps));
             } catch {}
             setIsCloudSynced(true);
           },
           (err) => {
-            console.error('Erro employees sync:', err);
+            console.error(`Erro employees sync (${clientId}):`, err);
             setIsCloudSynced(false);
           }
         );
       } catch (err) {
-        console.error('Falha ao inicializar Firebase:', err);
+        console.error('Falha ao inicializar dados do cliente no Firebase:', err);
         setIsCloudSynced(false);
       }
     };
 
-    initFirebase();
+    initTenantCloud();
 
     return () => {
       unsubRooms();
@@ -307,7 +308,7 @@ export default function App() {
       unsubWorkplaces();
       unsubEmployees();
     };
-  }, []);
+  }, [currentClient?.id]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -348,12 +349,6 @@ export default function App() {
         e.preventDefault();
         const searchInput = document.getElementById('top-search');
         searchInput?.focus();
-      } else if (e.altKey && e.key.toLowerCase() === 'q') {
-        e.preventDefault();
-        handleLogout();
-      } else if (e.key === 'Escape') {
-        if (isShortcutsOpen) setIsShortcutsOpen(false);
-        if (isTxtVoucherOpen) setIsTxtVoucherOpen(false);
       }
     };
 
@@ -361,16 +356,23 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isShortcutsOpen, isTxtVoucherOpen, showToast]);
 
-  // Handler: Save / Update Guest
+  // Handler: Save / Update Guest (Strictly scoped to current client)
   const handleSaveGuest = async (guest: GuestReservation) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     // Optimistic update
     setGuests((prev) => {
       const exists = prev.some((g) => g.id === guest.id);
-      return exists ? prev.map((g) => (g.id === guest.id ? guest : g)) : [guest, ...prev];
+      const updated = exists ? prev.map((g) => (g.id === guest.id ? guest : g)) : [guest, ...prev];
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
 
     try {
-      await saveGuestToFirestore(guest);
+      await saveGuestToFirestore(clientId, guest);
 
       // Update room state in Firestore
       const targetRoom = rooms.find((r) => r.number === guest.roomNumber);
@@ -383,8 +385,14 @@ export default function App() {
           checkInDate: guest.checkIn,
           checkOutDate: guest.checkOut,
         };
-        setRooms((prev) => prev.map((r) => (r.id === updatedRoom.id ? updatedRoom : r)));
-        await saveRoomToFirestore(updatedRoom);
+        setRooms((prev) => {
+          const u = prev.map((r) => (r.id === updatedRoom.id ? updatedRoom : r));
+          try {
+            localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+          } catch {}
+          return u;
+        });
+        await saveRoomToFirestore(clientId, updatedRoom);
       }
 
       // Check if previous room had this guest
@@ -400,8 +408,14 @@ export default function App() {
           checkInDate: undefined,
           checkOutDate: undefined,
         };
-        setRooms((prev) => prev.map((r) => (r.id === clearedRoom.id ? clearedRoom : r)));
-        await saveRoomToFirestore(clearedRoom);
+        setRooms((prev) => {
+          const u = prev.map((r) => (r.id === clearedRoom.id ? clearedRoom : r));
+          try {
+            localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+          } catch {}
+          return u;
+        });
+        await saveRoomToFirestore(clientId, clearedRoom);
       }
 
       showToast(`HÓSPEDE ${guest.name.toUpperCase()} SALVO COM SUCESSO!`);
@@ -411,16 +425,25 @@ export default function App() {
     }
   };
 
-  // Handler: Check-out of guest
+  // Handler: Check-out of guest (Strictly scoped to current client)
   const handleCheckOutGuest = async (guestId: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const target = guests.find((g) => g.id === guestId);
     if (!target) return;
 
     const updatedGuest: GuestReservation = { ...target, status: 'Check-out' };
-    setGuests((prev) => prev.map((g) => (g.id === guestId ? updatedGuest : g)));
+    setGuests((prev) => {
+      const u = prev.map((g) => (g.id === guestId ? updatedGuest : g));
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await saveGuestToFirestore(updatedGuest);
+      await saveGuestToFirestore(clientId, updatedGuest);
 
       const targetRoom = rooms.find(
         (r) => r.number === target.roomNumber || r.currentGuestId === guestId
@@ -434,8 +457,14 @@ export default function App() {
           checkInDate: undefined,
           checkOutDate: undefined,
         };
-        setRooms((prev) => prev.map((r) => (r.id === cleaningRoom.id ? cleaningRoom : r)));
-        await saveRoomToFirestore(cleaningRoom);
+        setRooms((prev) => {
+          const u = prev.map((r) => (r.id === cleaningRoom.id ? cleaningRoom : r));
+          try {
+            localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+          } catch {}
+          return u;
+        });
+        await saveRoomToFirestore(clientId, cleaningRoom);
       }
 
       showToast(`CHECK-OUT REALIZADO! QUARTO EM LIMPEZA`);
@@ -445,12 +474,21 @@ export default function App() {
     }
   };
 
-  // Handler: Delete guest
+  // Handler: Delete guest (Strictly scoped to current client)
   const handleDeleteGuest = async (guestId: string) => {
-    setGuests((prev) => prev.filter((g) => g.id !== guestId));
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    setGuests((prev) => {
+      const u = prev.filter((g) => g.id !== guestId);
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await deleteGuestFromFirestore(guestId);
+      await deleteGuestFromFirestore(clientId, guestId);
 
       const relatedRoom = rooms.find((r) => r.currentGuestId === guestId);
       if (relatedRoom) {
@@ -462,8 +500,14 @@ export default function App() {
           checkInDate: undefined,
           checkOutDate: undefined,
         };
-        setRooms((prev) => prev.map((r) => (r.id === freedRoom.id ? freedRoom : r)));
-        await saveRoomToFirestore(freedRoom);
+        setRooms((prev) => {
+          const u = prev.map((r) => (r.id === freedRoom.id ? freedRoom : r));
+          try {
+            localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+          } catch {}
+          return u;
+        });
+        await saveRoomToFirestore(clientId, freedRoom);
       }
 
       showToast('HÓSPEDE EXCLUÍDO DO FIREBASE');
@@ -473,8 +517,11 @@ export default function App() {
     }
   };
 
-  // Handler: Update Room Status
+  // Handler: Update Room Status (Strictly scoped to current client)
   const handleUpdateRoomStatus = async (roomId: string, newStatus: RoomStatus) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const room = rooms.find((r) => r.id === roomId);
     if (!room) return;
 
@@ -492,10 +539,16 @@ export default function App() {
         : {}),
     };
 
-    setRooms((prev) => prev.map((r) => (r.id === roomId ? updatedRoom : r)));
+    setRooms((prev) => {
+      const u = prev.map((r) => (r.id === roomId ? updatedRoom : r));
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await saveRoomToFirestore(updatedRoom);
+      await saveRoomToFirestore(clientId, updatedRoom);
       showToast(`QUARTO ${room.number}: [${newStatus.toUpperCase()}]`);
     } catch (err) {
       console.error(err);
@@ -503,16 +556,25 @@ export default function App() {
     }
   };
 
-  // Handler: Update Room Rate
+  // Handler: Update Room Rate (Strictly scoped to current client)
   const handleUpdateRoomRate = async (roomId: string, newRate: number) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const room = rooms.find((r) => r.id === roomId);
     if (!room) return;
 
     const updatedRoom: Room = { ...room, dailyRate: newRate };
-    setRooms((prev) => prev.map((r) => (r.id === roomId ? updatedRoom : r)));
+    setRooms((prev) => {
+      const u = prev.map((r) => (r.id === roomId ? updatedRoom : r));
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await saveRoomToFirestore(updatedRoom);
+      await saveRoomToFirestore(clientId, updatedRoom);
       showToast('VALOR DA DIÁRIA ATUALIZADO');
     } catch (err) {
       console.error(err);
@@ -520,23 +582,30 @@ export default function App() {
     }
   };
 
-  // Handler: Add New Room
+  // Handler: Add New Room (Strictly scoped to current client)
   const handleAddNewRoom = async (newRoom: Room) => {
-    if (currentClient) {
-      const plan = SUBSCRIPTION_PLANS[currentClient.plan];
-      if (plan && rooms.length >= plan.roomLimit) {
-        showAlert(
-          `Limite de quartos atingido para o plano ${plan.name.toUpperCase()} (${plan.roomLimitText}).\n\nAtualmente sua propriedade já possui ${rooms.length} quartos cadastrados.\nPara cadastrar mais acomodações, faça upgrade da sua assinatura.`,
-          'LIMITE DO PLANO ATINGIDO'
-        );
-        return;
-      }
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    const plan = SUBSCRIPTION_PLANS[currentClient.plan];
+    if (plan && rooms.length >= plan.roomLimit) {
+      showAlert(
+        `Limite de quartos atingido para o plano ${plan.name.toUpperCase()} (${plan.roomLimitText}).\n\nAtualmente sua propriedade já possui ${rooms.length} quartos cadastrados.\nPara cadastrar mais acomodações, faça upgrade da sua assinatura.`,
+        'LIMITE DO PLANO ATINGIDO'
+      );
+      return;
     }
 
-    setRooms((prev) => [...prev, newRoom]);
+    setRooms((prev) => {
+      const u = [...prev, newRoom];
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await saveRoomToFirestore(newRoom);
+      await saveRoomToFirestore(clientId, newRoom);
       showToast(`QUARTO ${newRoom.number} ADICIONADO!`);
     } catch (err) {
       console.error(err);
@@ -544,8 +613,11 @@ export default function App() {
     }
   };
 
-  // Handler: Delete Room
+  // Handler: Delete Room (Strictly scoped to current client)
   const handleDeleteRoom = async (roomId: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const target = rooms.find((r) => r.id === roomId);
     if (!target) return;
     if (target.status === 'ocupado') {
@@ -553,10 +625,16 @@ export default function App() {
       return;
     }
 
-    setRooms((prev) => prev.filter((r) => r.id !== roomId));
+    setRooms((prev) => {
+      const u = prev.filter((r) => r.id !== roomId);
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await deleteRoomFromFirestore(roomId);
+      await deleteRoomFromFirestore(clientId, roomId);
       showToast(`QUARTO ${target.number} EXCLUÍDO!`);
     } catch (err) {
       console.error(err);
@@ -564,16 +642,25 @@ export default function App() {
     }
   };
 
-  // Handler: Update Room Category
+  // Handler: Update Room Category (Strictly scoped to current client)
   const handleUpdateRoomCategory = async (roomId: string, newCategory: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const room = rooms.find((r) => r.id === roomId);
     if (!room) return;
 
     const updatedRoom: Room = { ...room, type: newCategory };
-    setRooms((prev) => prev.map((r) => (r.id === roomId ? updatedRoom : r)));
+    setRooms((prev) => {
+      const u = prev.map((r) => (r.id === roomId ? updatedRoom : r));
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await saveRoomToFirestore(updatedRoom);
+      await saveRoomToFirestore(clientId, updatedRoom);
       showToast(`CATEGORIA: "${newCategory.toUpperCase()}"`);
     } catch (err) {
       console.error(err);
@@ -581,8 +668,11 @@ export default function App() {
     }
   };
 
-  // Handler: Add New Category
+  // Handler: Add New Category (Strictly scoped to current client)
   const handleAddCategory = async (newCategoryName: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const trimmed = newCategoryName.trim();
     if (!trimmed) {
       showToast('DIGITE O NOME DA CATEGORIA!');
@@ -593,7 +683,8 @@ export default function App() {
       return;
     }
 
-    setCategories((prev) => [...prev, trimmed]);
+    const updatedCats = [...categories, trimmed];
+    setCategories(updatedCats);
 
     const newPlan: RatePlan = {
       id: `rate-${Date.now()}`,
@@ -605,11 +696,14 @@ export default function App() {
       extraPersonRate: 80,
       minNights: 1,
     };
-    setRatePlans((prev) => [...prev, newPlan]);
+    const updatedRates = [...ratePlans, newPlan];
+    setRatePlans(updatedRates);
 
     try {
-      await saveCategoryToFirestore(trimmed);
-      await saveRatePlanToFirestore(newPlan);
+      localStorage.setItem(getTenantKey(clientId, 'CATEGORIES'), JSON.stringify(updatedCats));
+      localStorage.setItem(getTenantKey(clientId, 'RATES'), JSON.stringify(updatedRates));
+      await saveCategoryToFirestore(clientId, trimmed);
+      await saveRatePlanToFirestore(clientId, newPlan);
       showToast(`CATEGORIA "${trimmed.toUpperCase()}" CRIADA!`);
     } catch (err) {
       console.error(err);
@@ -617,8 +711,11 @@ export default function App() {
     }
   };
 
-  // Handler: Delete Category
+  // Handler: Delete Category (Strictly scoped to current client)
   const handleDeleteCategory = async (categoryToDelete: string): Promise<boolean> => {
+    if (!currentClient) return false;
+    const clientId = currentClient.id;
+
     if (categories.length <= 1) {
       showToast('ERRO: HOTEL DEVE TER AO MENOS 1 CATEGORIA!');
       return false;
@@ -627,28 +724,34 @@ export default function App() {
     const fallbackCategory = categories.find((c) => c !== categoryToDelete) || 'Standard';
     const affectedRooms = rooms.filter((r) => r.type === categoryToDelete);
 
-    setCategories((prev) => prev.filter((c) => c !== categoryToDelete));
+    const updatedCats = categories.filter((c) => c !== categoryToDelete);
+    setCategories(updatedCats);
 
     // Reassign affected rooms
+    let updatedRooms = rooms;
     if (affectedRooms.length > 0) {
-      setRooms((prev) =>
-        prev.map((r) => (r.type === categoryToDelete ? { ...r, type: fallbackCategory } : r))
-      );
+      updatedRooms = rooms.map((r) => (r.type === categoryToDelete ? { ...r, type: fallbackCategory } : r));
+      setRooms(updatedRooms);
     }
 
     // Remove rate plan
     const planToDelete = ratePlans.find((p) => p.roomType === categoryToDelete);
-    setRatePlans((prev) => prev.filter((p) => p.roomType !== categoryToDelete));
+    const updatedRatePlans = ratePlans.filter((p) => p.roomType !== categoryToDelete);
+    setRatePlans(updatedRatePlans);
 
     try {
-      await deleteCategoryFromFirestore(categoryToDelete);
+      localStorage.setItem(getTenantKey(clientId, 'CATEGORIES'), JSON.stringify(updatedCats));
+      localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(updatedRooms));
+      localStorage.setItem(getTenantKey(clientId, 'RATES'), JSON.stringify(updatedRatePlans));
+
+      await deleteCategoryFromFirestore(clientId, categoryToDelete);
 
       if (planToDelete) {
-        await deleteRatePlanFromFirestore(planToDelete.id);
+        await deleteRatePlanFromFirestore(clientId, planToDelete.id);
       }
 
       for (const r of affectedRooms) {
-        await saveRoomToFirestore({ ...r, type: fallbackCategory });
+        await saveRoomToFirestore(clientId, { ...r, type: fallbackCategory });
       }
 
       showToast(
@@ -683,12 +786,21 @@ export default function App() {
     }
   };
 
-  // Handler: Update Rate Plan
+  // Handler: Update Rate Plan (Strictly scoped to current client)
   const handleUpdateRatePlan = async (updated: RatePlan) => {
-    setRatePlans((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    setRatePlans((prev) => {
+      const u = prev.map((p) => (p.id === updated.id ? updated : p));
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'RATES'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await saveRatePlanToFirestore(updated);
+      await saveRatePlanToFirestore(clientId, updated);
     } catch (err) {
       console.error(err);
       showToast('ERRO AO SALVAR TARIFA NO FIREBASE!');
@@ -701,15 +813,22 @@ export default function App() {
     setIsTxtVoucherOpen(true);
   };
 
-  // Handler: Save / Update Employee
+  // Handler: Save / Update Employee (Strictly scoped to current client)
   const handleSaveEmployee = async (employee: Employee) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     setEmployees((prev) => {
       const exists = prev.some((e) => e.id === employee.id);
-      return exists ? prev.map((e) => (e.id === employee.id ? employee : e)) : [employee, ...prev];
+      const u = exists ? prev.map((e) => (e.id === employee.id ? employee : e)) : [employee, ...prev];
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify(u));
+      } catch {}
+      return u;
     });
 
     try {
-      await saveEmployeeToFirestore(employee);
+      await saveEmployeeToFirestore(clientId, employee);
       showToast(`FUNCIONÁRIO "${employee.name}" SALVO NO FIREBASE!`);
     } catch (err) {
       console.error(err);
@@ -717,13 +836,22 @@ export default function App() {
     }
   };
 
-  // Handler: Delete Employee
+  // Handler: Delete Employee (Strictly scoped to current client)
   const handleDeleteEmployee = async (employeeId: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     const emp = employees.find((e) => e.id === employeeId);
-    setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+    setEmployees((prev) => {
+      const u = prev.filter((e) => e.id !== employeeId);
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify(u));
+      } catch {}
+      return u;
+    });
 
     try {
-      await deleteEmployeeFromFirestore(employeeId);
+      await deleteEmployeeFromFirestore(clientId, employeeId);
       showToast(`FUNCIONÁRIO "${emp?.name || employeeId}" EXCLUÍDO!`);
     } catch (err) {
       console.error(err);
@@ -731,13 +859,18 @@ export default function App() {
     }
   };
 
-  // Handler: Add Workplace
+  // Handler: Add Workplace (Strictly scoped to current client)
   const handleAddWorkplace = async (workplaceName: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     if (workplaces.includes(workplaceName)) return;
-    setWorkplaces((prev) => [...prev, workplaceName]);
+    const updated = [...workplaces, workplaceName];
+    setWorkplaces(updated);
 
     try {
-      await saveWorkplaceToFirestore(workplaceName);
+      localStorage.setItem(getTenantKey(clientId, 'WORKPLACES'), JSON.stringify(updated));
+      await saveWorkplaceToFirestore(clientId, workplaceName);
       showToast(`LOCAL "${workplaceName}" CADASTRADO NO FIREBASE!`);
     } catch (err) {
       console.error(err);
@@ -745,12 +878,17 @@ export default function App() {
     }
   };
 
-  // Handler: Delete Workplace
+  // Handler: Delete Workplace (Strictly scoped to current client)
   const handleDeleteWorkplace = async (workplaceName: string) => {
-    setWorkplaces((prev) => prev.filter((w) => w !== workplaceName));
+    if (!currentClient) return false;
+    const clientId = currentClient.id;
+
+    const updated = workplaces.filter((w) => w !== workplaceName);
+    setWorkplaces(updated);
 
     try {
-      await deleteWorkplaceFromFirestore(workplaceName);
+      localStorage.setItem(getTenantKey(clientId, 'WORKPLACES'), JSON.stringify(updated));
+      await deleteWorkplaceFromFirestore(clientId, workplaceName);
       showToast(`LOCAL "${workplaceName}" EXCLUÍDO!`);
       return true;
     } catch (err) {
@@ -781,22 +919,32 @@ export default function App() {
     }
   };
 
-  // Reset to original default mock data in Firebase and Local
+  // Reset to default mock data (Strictly scoped to active client)
   const handleResetData = async () => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+    const isDemo = clientId === 'client-demo-default';
+
     try {
-      await resetFirestoreDatabase();
-      setRooms(INITIAL_ROOMS);
-      setGuests(INITIAL_GUESTS);
+      await resetFirestoreDatabase(clientId, isDemo);
+      const targetRooms = isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS;
+      const targetGuests = isDemo ? INITIAL_GUESTS : [];
+      const targetEmps = isDemo ? INITIAL_EMPLOYEES : [];
+
+      setRooms(targetRooms);
+      setGuests(targetGuests);
       setRatePlans(INITIAL_RATE_PLANS);
       setCategories(INITIAL_CATEGORIES);
       setWorkplaces(INITIAL_WORKPLACES);
-      setEmployees(INITIAL_EMPLOYEES);
-      localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(INITIAL_ROOMS));
-      localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(INITIAL_GUESTS));
-      localStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify(INITIAL_RATE_PLANS));
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
-      localStorage.setItem(STORAGE_KEYS.WORKPLACES, JSON.stringify(INITIAL_WORKPLACES));
-      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(INITIAL_EMPLOYEES));
+      setEmployees(targetEmps);
+
+      localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(targetRooms));
+      localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify(targetGuests));
+      localStorage.setItem(getTenantKey(clientId, 'RATES'), JSON.stringify(INITIAL_RATE_PLANS));
+      localStorage.setItem(getTenantKey(clientId, 'CATEGORIES'), JSON.stringify(INITIAL_CATEGORIES));
+      localStorage.setItem(getTenantKey(clientId, 'WORKPLACES'), JSON.stringify(INITIAL_WORKPLACES));
+      localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify(targetEmps));
+
       showToast('DADOS PADRÃO RESTAURADOS NO FIREBASE!');
     } catch (err) {
       console.error(err);
@@ -804,14 +952,17 @@ export default function App() {
     }
   };
 
-  // Clear / Wipe all data in Firebase and Local (ZERAR DADOS)
+  // Clear / Wipe all data in Firebase and Local (ZERAR DADOS - Strictly scoped to active client)
   const handleClearData = async () => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
     try {
-      await clearAllFirestoreData();
+      await clearAllFirestoreData(clientId);
       setRooms([]);
       setGuests([]);
       setEmployees([]);
-      setWorkplaces(['Recepção']);
+      setWorkplaces(['Recepção', 'Cozinha', 'Governança', 'Manutenção']);
       const standardRatePlan: RatePlan = {
         id: 'rate-standard',
         roomType: 'Standard',
@@ -824,12 +975,17 @@ export default function App() {
       };
       setRatePlans([standardRatePlan]);
       setCategories(['Standard']);
-      localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify([]));
-      localStorage.setItem(STORAGE_KEYS.RATES, JSON.stringify([standardRatePlan]));
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(['Standard']));
-      localStorage.setItem(STORAGE_KEYS.WORKPLACES, JSON.stringify(['Recepção']));
-      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify([]));
+
+      localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify([]));
+      localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify([]));
+      localStorage.setItem(getTenantKey(clientId, 'RATES'), JSON.stringify([standardRatePlan]));
+      localStorage.setItem(getTenantKey(clientId, 'CATEGORIES'), JSON.stringify(['Standard']));
+      localStorage.setItem(
+        getTenantKey(clientId, 'WORKPLACES'),
+        JSON.stringify(['Recepção', 'Cozinha', 'Governança', 'Manutenção'])
+      );
+      localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify([]));
+
       showToast('TODAS AS INFORMAÇÕES FORAM ZERADAS NO FIREBASE!');
     } catch (err) {
       console.error(err);
@@ -844,6 +1000,7 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
         registeredClients={clients}
         onSaveClient={handleSaveNewClient}
+        onUpdateClientsList={handleUpdateClientsList}
       />
     );
   }

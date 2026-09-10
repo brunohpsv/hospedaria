@@ -74,6 +74,7 @@ export interface ClientAccount {
   plan: SubscriptionPlanType;
   accessKey: string;
   createdAt: string;
+  status?: 'ativo' | 'suspenso';
 }
 
 export type EmployeeStatus = 'ativo' | 'férias' | 'afastado' | 'desligado';

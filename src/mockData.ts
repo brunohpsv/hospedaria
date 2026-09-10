@@ -435,3 +435,61 @@ export const INITIAL_EMPLOYEES: Employee[] = [
   },
 ];
 
+// Starter rooms for a brand new hotel/pousada registration (all available, zero guests)
+export const STARTER_CLEAN_ROOMS: Room[] = [
+  {
+    id: 'r-101',
+    number: '101',
+    type: 'Standard',
+    area: 'Bloco Principal - Térreo',
+    status: 'livre',
+    dailyRate: 220,
+    capacity: 2,
+  },
+  {
+    id: 'r-102',
+    number: '102',
+    type: 'Standard',
+    area: 'Bloco Principal - Térreo',
+    status: 'livre',
+    dailyRate: 220,
+    capacity: 2,
+  },
+  {
+    id: 'r-103',
+    number: '103',
+    type: 'Standard',
+    area: 'Bloco Principal - Térreo',
+    status: 'livre',
+    dailyRate: 220,
+    capacity: 2,
+  },
+  {
+    id: 'r-201',
+    number: '201',
+    type: 'Luxo',
+    area: 'Bloco Superior - Varanda',
+    status: 'livre',
+    dailyRate: 340,
+    capacity: 3,
+  },
+  {
+    id: 'r-202',
+    number: '202',
+    type: 'Luxo',
+    area: 'Bloco Superior - Varanda',
+    status: 'livre',
+    dailyRate: 340,
+    capacity: 3,
+  },
+  {
+    id: 'r-301',
+    number: '301',
+    type: 'Suíte Master',
+    area: 'Cobertura',
+    status: 'livre',
+    dailyRate: 520,
+    capacity: 4,
+  },
+];
+

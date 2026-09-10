@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  updateDoc,
   onSnapshot,
   getDocs,
   getDoc,
@@ -18,6 +19,7 @@ import {
   INITIAL_RATE_PLANS,
   INITIAL_WORKPLACES,
   INITIAL_EMPLOYEES,
+  STARTER_CLEAN_ROOMS,
 } from '../mockData';
 
 function cleanDoc<T extends Record<string, any>>(obj: T): Record<string, any> {
@@ -30,73 +32,101 @@ function cleanDoc<T extends Record<string, any>>(obj: T): Record<string, any> {
   return cleaned;
 }
 
-// Initial seeding of Firestore when first installed
-export async function seedInitialFirestoreData(): Promise<void> {
-  if (!db) return;
+/**
+ * Helper to get client-isolated subcollection references.
+ * Each establishment account has its own isolated subcollections under `clients/${clientId}/...`
+ */
+function clientCollection(clientId: string, subcollectionName: string) {
+  return collection(db!, 'clients', clientId, subcollectionName);
+}
+
+function clientDoc(clientId: string, subcollectionName: string, docId: string) {
+  return doc(db!, 'clients', clientId, subcollectionName, docId);
+}
+
+/**
+ * Initial seeding of Firestore per client account.
+ * - For demo client ('client-demo-default'): seeds full demo rooms, guests, and staff.
+ * - For newly registered client: seeds clean starter rooms (all available, 0 guests), categories, and workplaces.
+ */
+export async function seedClientFirestoreData(clientId: string, isDemo: boolean = false): Promise<void> {
+  if (!db || !clientId) return;
   try {
-    const initSnap = await getDoc(doc(db, '_system', 'init'));
+    const initDocRef = doc(db, 'clients', clientId, '_system', 'init');
+    const initSnap = await getDoc(initDocRef);
     if (initSnap.exists()) {
-      return; // Already initialized or intentionally cleared by the user
+      return; // Already initialized for this client
     }
 
-    const roomsSnap = await getDocs(collection(db, 'rooms'));
-    if (roomsSnap.empty) {
-      const batch = writeBatch(db);
-
-      // Seed rooms
-      for (const room of INITIAL_ROOMS) {
-        batch.set(doc(db, 'rooms', room.id), cleanDoc(room));
-      }
-
-      // Seed guests
-      for (const guest of INITIAL_GUESTS) {
-        batch.set(doc(db, 'guests', guest.id), cleanDoc(guest));
-      }
-
-      // Seed categories
-      for (const cat of INITIAL_CATEGORIES) {
-        batch.set(doc(db, 'categories', cat), { id: cat, name: cat });
-      }
-
-      // Seed rate plans
-      for (const plan of INITIAL_RATE_PLANS) {
-        batch.set(doc(db, 'ratePlans', plan.id), cleanDoc(plan));
-      }
-
-      // Seed workplaces
-      for (const wp of INITIAL_WORKPLACES) {
-        batch.set(doc(db, 'workplaces', wp), { id: wp, name: wp });
-      }
-
-      // Seed employees
-      for (const emp of INITIAL_EMPLOYEES) {
-        batch.set(doc(db, 'employees', emp.id), cleanDoc(emp));
-      }
-
-      batch.set(doc(db, '_system', 'init'), {
-        initialized: true,
-        seededAt: new Date().toISOString(),
-      });
-
-      await batch.commit();
-      console.log('Dados iniciais inseridos com sucesso no Firestore!');
+    const roomsSnap = await getDocs(clientCollection(clientId, 'rooms'));
+    if (!roomsSnap.empty) {
+      return;
     }
+
+    const batch = writeBatch(db);
+
+    const roomsToSeed = isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS;
+    const guestsToSeed = isDemo ? INITIAL_GUESTS : [];
+    const employeesToSeed = isDemo ? INITIAL_EMPLOYEES : [];
+
+    // Seed rooms
+    for (const room of roomsToSeed) {
+      batch.set(clientDoc(clientId, 'rooms', room.id), cleanDoc(room));
+    }
+
+    // Seed guests
+    for (const guest of guestsToSeed) {
+      batch.set(clientDoc(clientId, 'guests', guest.id), cleanDoc(guest));
+    }
+
+    // Seed categories
+    for (const cat of INITIAL_CATEGORIES) {
+      batch.set(clientDoc(clientId, 'categories', cat), { id: cat, name: cat });
+    }
+
+    // Seed rate plans
+    for (const plan of INITIAL_RATE_PLANS) {
+      batch.set(clientDoc(clientId, 'ratePlans', plan.id), cleanDoc(plan));
+    }
+
+    // Seed workplaces
+    for (const wp of INITIAL_WORKPLACES) {
+      batch.set(clientDoc(clientId, 'workplaces', wp), { id: wp, name: wp });
+    }
+
+    // Seed employees
+    for (const emp of employeesToSeed) {
+      batch.set(clientDoc(clientId, 'employees', emp.id), cleanDoc(emp));
+    }
+
+    batch.set(initDocRef, {
+      initialized: true,
+      isDemo,
+      seededAt: new Date().toISOString(),
+    });
+
+    await batch.commit();
+    console.log(`[Firestore] Dados isolados configurados para o cliente: ${clientId} (Demo: ${isDemo})`);
   } catch (err) {
-    console.error('Erro ao verificar/alimentar dados no Firestore:', err);
+    console.error(`[Firestore] Erro ao verificar/alimentar dados para ${clientId}:`, err);
   }
 }
 
-// Real-time subscriptions
+// -----------------------------------------------------------------------------
+// Real-time subscriptions (strictly isolated per clientId)
+// -----------------------------------------------------------------------------
+
 export function subscribeRooms(
+  clientId: string,
   onData: (rooms: Room[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  if (!db) {
+  if (!db || !clientId) {
     onError?.(new Error('Banco de dados indisponível (modo offline)'));
     return () => {};
   }
   return onSnapshot(
-    collection(db, 'rooms'),
+    clientCollection(clientId, 'rooms'),
     (snap) => {
       const items: Room[] = [];
       snap.forEach((docSnap) => {
@@ -107,22 +137,23 @@ export function subscribeRooms(
       onData(items);
     },
     (err) => {
-      console.error('Erro no listener de quartos:', err);
+      console.error(`[Firestore] Erro no listener de quartos do cliente ${clientId}:`, err);
       onError?.(err);
     }
   );
 }
 
 export function subscribeGuests(
+  clientId: string,
   onData: (guests: GuestReservation[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  if (!db) {
+  if (!db || !clientId) {
     onError?.(new Error('Banco de dados indisponível (modo offline)'));
     return () => {};
   }
   return onSnapshot(
-    collection(db, 'guests'),
+    clientCollection(clientId, 'guests'),
     (snap) => {
       const items: GuestReservation[] = [];
       snap.forEach((docSnap) => {
@@ -133,22 +164,23 @@ export function subscribeGuests(
       onData(items);
     },
     (err) => {
-      console.error('Erro no listener de hóspedes:', err);
+      console.error(`[Firestore] Erro no listener de hóspedes do cliente ${clientId}:`, err);
       onError?.(err);
     }
   );
 }
 
 export function subscribeCategories(
+  clientId: string,
   onData: (categories: string[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  if (!db) {
+  if (!db || !clientId) {
     onError?.(new Error('Banco de dados indisponível (modo offline)'));
     return () => {};
   }
   return onSnapshot(
-    collection(db, 'categories'),
+    clientCollection(clientId, 'categories'),
     (snap) => {
       const items: string[] = [];
       snap.forEach((docSnap) => {
@@ -158,22 +190,23 @@ export function subscribeCategories(
       onData(items.length > 0 ? items : ['Standard']);
     },
     (err) => {
-      console.error('Erro no listener de categorias:', err);
+      console.error(`[Firestore] Erro no listener de categorias do cliente ${clientId}:`, err);
       onError?.(err);
     }
   );
 }
 
 export function subscribeRatePlans(
+  clientId: string,
   onData: (plans: RatePlan[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  if (!db) {
+  if (!db || !clientId) {
     onError?.(new Error('Banco de dados indisponível (modo offline)'));
     return () => {};
   }
   return onSnapshot(
-    collection(db, 'ratePlans'),
+    clientCollection(clientId, 'ratePlans'),
     (snap) => {
       const items: RatePlan[] = [];
       snap.forEach((docSnap) => {
@@ -182,70 +215,23 @@ export function subscribeRatePlans(
       onData(items);
     },
     (err) => {
-      console.error('Erro no listener de tarifário:', err);
+      console.error(`[Firestore] Erro no listener de tarifas do cliente ${clientId}:`, err);
       onError?.(err);
     }
   );
 }
 
-// Room Operations
-export async function saveRoomToFirestore(room: Room): Promise<void> {
-  if (!db) return;
-  await setDoc(doc(db, 'rooms', room.id), cleanDoc(room), { merge: true });
-}
-
-export async function deleteRoomFromFirestore(roomId: string): Promise<void> {
-  if (!db) return;
-  await deleteDoc(doc(db, 'rooms', roomId));
-}
-
-// Guest Operations
-export async function saveGuestToFirestore(guest: GuestReservation): Promise<void> {
-  if (!db) return;
-  await setDoc(doc(db, 'guests', guest.id), cleanDoc(guest), { merge: true });
-}
-
-export async function deleteGuestFromFirestore(guestId: string): Promise<void> {
-  if (!db) return;
-  await deleteDoc(doc(db, 'guests', guestId));
-}
-
-// Category Operations
-export async function saveCategoryToFirestore(categoryName: string): Promise<void> {
-  if (!db) return;
-  await setDoc(doc(db, 'categories', categoryName), {
-    id: categoryName,
-    name: categoryName,
-  });
-}
-
-export async function deleteCategoryFromFirestore(categoryName: string): Promise<void> {
-  if (!db) return;
-  await deleteDoc(doc(db, 'categories', categoryName));
-}
-
-// Rate Plan Operations
-export async function saveRatePlanToFirestore(plan: RatePlan): Promise<void> {
-  if (!db) return;
-  await setDoc(doc(db, 'ratePlans', plan.id), cleanDoc(plan), { merge: true });
-}
-
-export async function deleteRatePlanFromFirestore(planId: string): Promise<void> {
-  if (!db) return;
-  await deleteDoc(doc(db, 'ratePlans', planId));
-}
-
-// Workplace (Setores de Trabalho) Operations
 export function subscribeWorkplaces(
+  clientId: string,
   onData: (workplaces: string[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  if (!db) {
+  if (!db || !clientId) {
     onError?.(new Error('Banco de dados indisponível (modo offline)'));
     return () => {};
   }
   return onSnapshot(
-    collection(db, 'workplaces'),
+    clientCollection(clientId, 'workplaces'),
     (snap) => {
       const items: string[] = [];
       snap.forEach((docSnap) => {
@@ -255,36 +241,23 @@ export function subscribeWorkplaces(
       onData(items.length > 0 ? items : INITIAL_WORKPLACES);
     },
     (err) => {
-      console.error('Erro no listener de locais de trabalho:', err);
+      console.error(`[Firestore] Erro no listener de locais de trabalho do cliente ${clientId}:`, err);
       onError?.(err);
     }
   );
 }
 
-export async function saveWorkplaceToFirestore(workplaceName: string): Promise<void> {
-  if (!db) return;
-  await setDoc(doc(db, 'workplaces', workplaceName), {
-    id: workplaceName,
-    name: workplaceName,
-  });
-}
-
-export async function deleteWorkplaceFromFirestore(workplaceName: string): Promise<void> {
-  if (!db) return;
-  await deleteDoc(doc(db, 'workplaces', workplaceName));
-}
-
-// Employee Operations
 export function subscribeEmployees(
+  clientId: string,
   onData: (employees: Employee[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  if (!db) {
+  if (!db || !clientId) {
     onError?.(new Error('Banco de dados indisponível (modo offline)'));
     return () => {};
   }
   return onSnapshot(
-    collection(db, 'employees'),
+    clientCollection(clientId, 'employees'),
     (snap) => {
       const items: Employee[] = [];
       snap.forEach((docSnap) => {
@@ -294,35 +267,104 @@ export function subscribeEmployees(
       onData(items);
     },
     (err) => {
-      console.error('Erro no listener de funcionários:', err);
+      console.error(`[Firestore] Erro no listener de funcionários do cliente ${clientId}:`, err);
       onError?.(err);
     }
   );
 }
 
-export async function saveEmployeeToFirestore(employee: Employee): Promise<void> {
-  if (!db) return;
-  await setDoc(doc(db, 'employees', employee.id), cleanDoc(employee), { merge: true });
+// -----------------------------------------------------------------------------
+// Isolated Document Operations per Client
+// -----------------------------------------------------------------------------
+
+// Room Operations
+export async function saveRoomToFirestore(clientId: string, room: Room): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'rooms', room.id), cleanDoc(room), { merge: true });
 }
 
-export async function deleteEmployeeFromFirestore(employeeId: string): Promise<void> {
-  if (!db) return;
-  await deleteDoc(doc(db, 'employees', employeeId));
+export async function deleteRoomFromFirestore(clientId: string, roomId: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'rooms', roomId));
 }
 
-// Complete Database Reset to Original Default Data
-export async function resetFirestoreDatabase(): Promise<void> {
-  if (!db) return;
+// Guest Operations
+export async function saveGuestToFirestore(clientId: string, guest: GuestReservation): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'guests', guest.id), cleanDoc(guest), { merge: true });
+}
+
+export async function deleteGuestFromFirestore(clientId: string, guestId: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'guests', guestId));
+}
+
+// Category Operations
+export async function saveCategoryToFirestore(clientId: string, categoryName: string): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'categories', categoryName), {
+    id: categoryName,
+    name: categoryName,
+  });
+}
+
+export async function deleteCategoryFromFirestore(clientId: string, categoryName: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'categories', categoryName));
+}
+
+// Rate Plan Operations
+export async function saveRatePlanToFirestore(clientId: string, plan: RatePlan): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'ratePlans', plan.id), cleanDoc(plan), { merge: true });
+}
+
+export async function deleteRatePlanFromFirestore(clientId: string, planId: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'ratePlans', planId));
+}
+
+// Workplace Operations
+export async function saveWorkplaceToFirestore(clientId: string, workplaceName: string): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'workplaces', workplaceName), {
+    id: workplaceName,
+    name: workplaceName,
+  });
+}
+
+export async function deleteWorkplaceFromFirestore(clientId: string, workplaceName: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'workplaces', workplaceName));
+}
+
+// Employee Operations
+export async function saveEmployeeToFirestore(clientId: string, employee: Employee): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'employees', employee.id), cleanDoc(employee), { merge: true });
+}
+
+export async function deleteEmployeeFromFirestore(clientId: string, employeeId: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'employees', employeeId));
+}
+
+// -----------------------------------------------------------------------------
+// Reset & Clear Operations (Operate ONLY on the target client)
+// -----------------------------------------------------------------------------
+
+export async function resetFirestoreDatabase(clientId: string, isDemo: boolean = false): Promise<void> {
+  if (!db || !clientId) return;
   const batch = writeBatch(db);
 
-  // Clear existing
+  // Clear client's existing documents
   const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap] = await Promise.all([
-    getDocs(collection(db, 'rooms')),
-    getDocs(collection(db, 'guests')),
-    getDocs(collection(db, 'categories')),
-    getDocs(collection(db, 'ratePlans')),
-    getDocs(collection(db, 'workplaces')),
-    getDocs(collection(db, 'employees')),
+    getDocs(clientCollection(clientId, 'rooms')),
+    getDocs(clientCollection(clientId, 'guests')),
+    getDocs(clientCollection(clientId, 'categories')),
+    getDocs(clientCollection(clientId, 'ratePlans')),
+    getDocs(clientCollection(clientId, 'workplaces')),
+    getDocs(clientCollection(clientId, 'employees')),
   ]);
 
   roomsSnap.forEach((d) => batch.delete(d.ref));
@@ -332,47 +374,50 @@ export async function resetFirestoreDatabase(): Promise<void> {
   workplacesSnap.forEach((d) => batch.delete(d.ref));
   employeesSnap.forEach((d) => batch.delete(d.ref));
 
-  // Re-seed original data
-  for (const r of INITIAL_ROOMS) {
-    batch.set(doc(db, 'rooms', r.id), cleanDoc(r));
+  // Re-seed data for this client
+  const roomsToSeed = isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS;
+  const guestsToSeed = isDemo ? INITIAL_GUESTS : [];
+  const employeesToSeed = isDemo ? INITIAL_EMPLOYEES : [];
+
+  for (const r of roomsToSeed) {
+    batch.set(clientDoc(clientId, 'rooms', r.id), cleanDoc(r));
   }
-  for (const g of INITIAL_GUESTS) {
-    batch.set(doc(db, 'guests', g.id), cleanDoc(g));
+  for (const g of guestsToSeed) {
+    batch.set(clientDoc(clientId, 'guests', g.id), cleanDoc(g));
   }
   for (const c of INITIAL_CATEGORIES) {
-    batch.set(doc(db, 'categories', c), { id: c, name: c });
+    batch.set(clientDoc(clientId, 'categories', c), { id: c, name: c });
   }
   for (const p of INITIAL_RATE_PLANS) {
-    batch.set(doc(db, 'ratePlans', p.id), cleanDoc(p));
+    batch.set(clientDoc(clientId, 'ratePlans', p.id), cleanDoc(p));
   }
   for (const w of INITIAL_WORKPLACES) {
-    batch.set(doc(db, 'workplaces', w), { id: w, name: w });
+    batch.set(clientDoc(clientId, 'workplaces', w), { id: w, name: w });
   }
-  for (const e of INITIAL_EMPLOYEES) {
-    batch.set(doc(db, 'employees', e.id), cleanDoc(e));
+  for (const e of employeesToSeed) {
+    batch.set(clientDoc(clientId, 'employees', e.id), cleanDoc(e));
   }
 
-  batch.set(doc(db, '_system', 'init'), {
+  batch.set(doc(db, 'clients', clientId, '_system', 'init'), {
     initialized: true,
+    isDemo,
     resetAt: new Date().toISOString(),
   });
 
   await batch.commit();
 }
 
-// Wipe / Clear All Platform Information (Zerar Dados)
-export async function clearAllFirestoreData(): Promise<void> {
-  if (!db) return;
+export async function clearAllFirestoreData(clientId: string): Promise<void> {
+  if (!db || !clientId) return;
   const batch = writeBatch(db);
 
-  // Clear all rooms, guests, categories, rates, workplaces and employees
   const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap] = await Promise.all([
-    getDocs(collection(db, 'rooms')),
-    getDocs(collection(db, 'guests')),
-    getDocs(collection(db, 'categories')),
-    getDocs(collection(db, 'ratePlans')),
-    getDocs(collection(db, 'workplaces')),
-    getDocs(collection(db, 'employees')),
+    getDocs(clientCollection(clientId, 'rooms')),
+    getDocs(clientCollection(clientId, 'guests')),
+    getDocs(clientCollection(clientId, 'categories')),
+    getDocs(clientCollection(clientId, 'ratePlans')),
+    getDocs(clientCollection(clientId, 'workplaces')),
+    getDocs(clientCollection(clientId, 'employees')),
   ]);
 
   roomsSnap.forEach((d) => batch.delete(d.ref));
@@ -382,10 +427,10 @@ export async function clearAllFirestoreData(): Promise<void> {
   workplacesSnap.forEach((d) => batch.delete(d.ref));
   employeesSnap.forEach((d) => batch.delete(d.ref));
 
-  // Retain a base clean accommodation category so that the user can immediately start adding rooms
+  // Retain a base clean accommodation category
   const defaultCat = 'Standard';
-  batch.set(doc(db, 'categories', defaultCat), { id: defaultCat, name: defaultCat });
-  batch.set(doc(db, 'ratePlans', 'rate-standard'), {
+  batch.set(clientDoc(clientId, 'categories', defaultCat), { id: defaultCat, name: defaultCat });
+  batch.set(clientDoc(clientId, 'ratePlans', 'rate-standard'), {
     id: 'rate-standard',
     roomType: defaultCat,
     lowSeasonRate: 200,
@@ -398,10 +443,10 @@ export async function clearAllFirestoreData(): Promise<void> {
 
   // Retain base workplaces
   for (const wp of ['Cozinha', 'Recepção', 'Governança', 'Manutenção']) {
-    batch.set(doc(db, 'workplaces', wp), { id: wp, name: wp });
+    batch.set(clientDoc(clientId, 'workplaces', wp), { id: wp, name: wp });
   }
 
-  batch.set(doc(db, '_system', 'init'), {
+  batch.set(doc(db, 'clients', clientId, '_system', 'init'), {
     initialized: true,
     clearedAt: new Date().toISOString(),
   });
@@ -409,7 +454,10 @@ export async function clearAllFirestoreData(): Promise<void> {
   await batch.commit();
 }
 
-// Client Accounts Operations (Login & Registration)
+// -----------------------------------------------------------------------------
+// Client Accounts (Global Directory of Establishments)
+// -----------------------------------------------------------------------------
+
 export async function saveClientToFirestore(client: ClientAccount): Promise<void> {
   if (!db) return;
   await setDoc(doc(db, 'clients', client.id), cleanDoc(client), { merge: true });
@@ -421,11 +469,142 @@ export async function getAllClientsFromFirestore(): Promise<ClientAccount[]> {
     const snap = await getDocs(collection(db, 'clients'));
     const list: ClientAccount[] = [];
     snap.forEach((docSnap) => {
-      list.push(docSnap.data() as ClientAccount);
+      const data = docSnap.data();
+      // Skip internal system documents if any
+      if (data.cpfCnpj && data.accessKey) {
+        list.push(data as ClientAccount);
+      }
     });
     return list;
   } catch (err) {
-    console.error('Erro ao buscar clientes:', err);
+    console.error('[Firestore] Erro ao buscar clientes cadastrados:', err);
     return [];
   }
 }
+
+export async function deleteClientFromFirestore(clientId: string): Promise<void> {
+  if (!db || !clientId) return;
+  try {
+    await deleteDoc(doc(db, 'clients', clientId));
+  } catch (err) {
+    console.error(`[Firestore] Erro ao deletar cliente ${clientId}:`, err);
+    throw err;
+  }
+}
+
+export async function updateClientStatusInFirestore(
+  clientId: string,
+  status: 'ativo' | 'suspenso'
+): Promise<void> {
+  if (!db || !clientId) return;
+  try {
+    await updateDoc(doc(db, 'clients', clientId), { status });
+  } catch (err) {
+    console.error(`[Firestore] Erro ao atualizar status do cliente ${clientId}:`, err);
+    throw err;
+  }
+}
+
+/**
+ * SHA-256 hash helper to ensure the admin password is never exposed in plaintext in the codebase.
+ */
+export async function hashAdminPassword(password: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password.trim());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    let h = 0;
+    for (let i = 0; i < password.length; i++) {
+      h = (Math.imul(31, h) + password.charCodeAt(i)) | 0;
+    }
+    return h.toString(16);
+  }
+}
+
+// Pre-calculated SHA-256 hash of the master admin password stored in Firebase
+// The plaintext password is NOT in the codebase.
+const FALLBACK_ADMIN_HASH = '279b9fac70d25abfa6967cf6bd752821a8190073d4ae9b30c0075d89a2345bf7';
+const ADMIN_HASH_CACHE_KEY = 'hotel_admin_hash_cache_v1';
+
+/**
+ * Verifies the admin password directly against Firestore (system_config/admin_auth).
+ * Falls back to cryptographic hash comparison if offline.
+ */
+export async function verifyAdminPasswordWithFirebase(enteredPassword: string): Promise<boolean> {
+  const trimmed = enteredPassword.trim();
+  if (!trimmed) return false;
+
+  const enteredHash = await hashAdminPassword(trimmed);
+
+  if (db) {
+    try {
+      const docRef = doc(db, 'system_config', 'admin_auth');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.password && data.password === trimmed) {
+          try {
+            localStorage.setItem(ADMIN_HASH_CACHE_KEY, enteredHash);
+          } catch {}
+          return true;
+        }
+        if (data.passwordHash && data.passwordHash === enteredHash) {
+          try {
+            localStorage.setItem(ADMIN_HASH_CACHE_KEY, enteredHash);
+          } catch {}
+          return true;
+        }
+        return false;
+      }
+    } catch (err) {
+      console.warn('[Firestore] Falha ao verificar senha adm no banco (verificando hash offline):', err);
+    }
+  }
+
+  // Offline or network fallback using SHA-256 hash comparison
+  try {
+    const cachedHash = localStorage.getItem(ADMIN_HASH_CACHE_KEY);
+    if (cachedHash && enteredHash === cachedHash) {
+      return true;
+    }
+  } catch {}
+
+  return enteredHash === FALLBACK_ADMIN_HASH;
+}
+
+/**
+ * Updates the admin master password in Firebase (system_config/admin_auth).
+ */
+export async function updateAdminPasswordInFirebase(newPassword: string): Promise<void> {
+  const trimmed = newPassword.trim();
+  if (!trimmed) return;
+
+  const hash = await hashAdminPassword(trimmed);
+
+  try {
+    localStorage.setItem(ADMIN_HASH_CACHE_KEY, hash);
+  } catch {}
+
+  if (db) {
+    try {
+      const docRef = doc(db, 'system_config', 'admin_auth');
+      await setDoc(
+        docRef,
+        {
+          password: trimmed,
+          passwordHash: hash,
+          updatedAt: new Date().toISOString(),
+          description: 'Credencial mestre de acesso administrativo',
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error('[Firestore] Erro ao atualizar senha adm no banco:', err);
+      throw err;
+    }
+  }
+}
+

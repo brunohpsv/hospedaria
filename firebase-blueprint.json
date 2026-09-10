@@ -116,6 +116,17 @@
         "notes": { "type": "string" }
       },
       "required": ["id", "name", "role", "workplace", "salary", "hireDate", "status"]
+    },
+    "system_config": {
+      "title": "System Configuration",
+      "description": "Configurações gerais do sistema e autenticação do administrador",
+      "type": "object",
+      "properties": {
+        "password": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "description": { "type": "string" }
+      }
     }
   }
 }
