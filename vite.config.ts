@@ -14,28 +14,17 @@ export default defineConfig(() => {
         name: 'github-pages-helper',
         closeBundle() {
           const distDir = path.resolve(__dirname, 'dist');
-          const docsDir = path.resolve(__dirname, 'docs');
           const indexPath = path.join(distDir, 'index.html');
           const notFoundPath = path.join(distDir, '404.html');
           const nojekyllDist = path.join(distDir, '.nojekyll');
 
-          // 1. Create 404.html fallback
+          // 1. Create 404.html fallback for direct links / SPAs
           if (fs.existsSync(indexPath)) {
             fs.copyFileSync(indexPath, notFoundPath);
           }
 
-          // 2. Create .nojekyll
+          // 2. Create .nojekyll to prevent GitHub Pages Jekyll processing
           fs.writeFileSync(nojekyllDist, '');
-
-          // 3. Duplicate compiled dist into docs/ folder for GitHub Pages branch deployment
-          try {
-            if (fs.existsSync(docsDir)) {
-              fs.rmSync(docsDir, { recursive: true, force: true });
-            }
-            fs.cpSync(distDir, docsDir, { recursive: true });
-          } catch (e) {
-            console.error('Error copying to docs:', e);
-          }
         },
       },
     ],

@@ -4,24 +4,26 @@ Sistema ultra minimalista para gestão de hotéis, pousadas e vilas no estilo Bl
 
 ---
 
-## 🚀 Como Publicar no GitHub Pages (Sem usar GitHub Actions)
+## 🚀 Como Publicar no GitHub Pages com BRANCH (100% Gratuito)
 
-O projeto agora gera automaticamente a pasta `/docs` pronta para publicação direta no GitHub Pages, sem consumir minutos do GitHub Actions.
+O projeto está configurado para publicar através da branch **`gh-pages`** (sem necessidade da pasta `/docs`).
 
-### Passo a Passo:
-1. Envie o código para o seu repositório no GitHub:
-   ```bash
-   git add .
-   git commit -m "Publicar versao em /docs"
-   git push origin main
-   ```
+### Opção 1: Automático pelo GitHub (Recomendado)
+Sempre que você enviar o código para a branch `main` ou `master`:
+1. O fluxo do **GitHub Actions** (`.github/workflows/deploy.yml`) compilará o projeto automaticamente e criará/atualizará a branch **`gh-pages`** com os arquivos finais compilados.
 2. No seu repositório no GitHub:
-   - Vá em **Settings** (Configurações) > **Pages** (no menu lateral).
-   - Em **Source** (Origem), escolha **"Deploy from a branch"**.
-   - Em **Branch**, selecione `main` (ou `master`).
-   - No campo da pasta ao lado da branch, selecione **/docs** e clique em **Save** (Salvar).
-3. Pronto! Em instantes seu site estará no ar em:
-   `https://brunohpsv.github.io/hospedaria/`
+   - Vá em **Settings** (Configurações) > **Pages** (no menu lateral esquerdo).
+   - Em **Build and deployment** > **Source**, selecione **"Deploy from a branch"**.
+   - Em **Branch**, selecione **`gh-pages`** e a pasta **/ (root)**.
+   - Clique em **Save** (Salvar).
+3. Seu sistema estará funcionando perfeitamente, sem tela em branco!
+
+### Opção 2: Pelo Terminal / Linha de Comando
+Se preferir publicar diretamente do seu computador:
+```bash
+npm run deploy
+```
+Esse comando compila a aplicação (`npm run build`) e envia os arquivos prontos diretamente para a branch `gh-pages` do seu repositório no GitHub.
 
 
 ---
