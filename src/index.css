@@ -14,8 +14,18 @@ input:focus, select:focus, textarea:focus {
 }
 
 ::selection {
-  background-color: #FFFFCC;
-  color: #000000;
+  background-color: #86efac;
+  color: #052e16;
+}
+
+::-moz-selection {
+  background-color: #86efac;
+  color: #052e16;
+}
+
+input::selection, textarea::selection, select::selection {
+  background-color: #86efac !important;
+  color: #052e16 !important;
 }
 
 /* Custom scrollbar in simple classic Windows style */

@@ -500,9 +500,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Água Mineral 500ml Sem Gás',
     brandModel: 'Crystal - Garrafa Pet 500ml',
     quantity: 12,
-    targetQuantity: 100,
+    minQuantity: 20, // 12 <= 20 -> ALERTA VERMELHO no topo da lista
     lastPurchasePrice: 1.85,
-    alertThresholdPercent: 20, // 12% is below 20% -> ALERT RED on top
     unit: 'un',
     category: 'Frigobar & Bebidas',
     lastPurchaseDate: '2026-09-01',
@@ -514,9 +513,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Sabonete em Barra 20g Miniatura',
     brandModel: 'Natura - Linha Hotelaria Erva Doce',
     quantity: 15,
-    targetQuantity: 150,
+    minQuantity: 25, // 15 <= 25 -> ALERTA VERMELHO no topo da lista
     lastPurchasePrice: 0.95,
-    alertThresholdPercent: 15, // 10% is below 15% -> ALERT RED on top
     unit: 'un',
     category: 'Higiene & Amenities',
     lastPurchaseDate: '2026-08-28',
@@ -528,9 +526,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Desinfetante Concentrado Floral 5L',
     brandModel: 'Veja - Galão Institucional 5L',
     quantity: 2,
-    targetQuantity: 10,
+    minQuantity: 4, // 2 <= 4 -> ALERTA VERMELHO no topo da lista
     lastPurchasePrice: 32.90,
-    alertThresholdPercent: 30, // 20% is below 30% -> ALERT RED on top
     unit: 'gl',
     category: 'Limpeza & Lavanderia',
     lastPurchaseDate: '2026-08-15',
@@ -542,9 +539,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Toalha de Banho Branca 500g',
     brandModel: 'Teka - Hotel Line 70x140cm 100% Algodão',
     quantity: 48,
-    targetQuantity: 60,
+    minQuantity: 15,
     lastPurchasePrice: 38.50,
-    alertThresholdPercent: 20, // 80% is normal
     unit: 'un',
     category: 'Rouparia & Enxoval',
     lastPurchaseDate: '2026-08-20',
@@ -556,9 +552,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Lençol Casal com Elástico 200 Fios',
     brandModel: 'Santista - Hotelaria Percal Branco',
     quantity: 32,
-    targetQuantity: 40,
+    minQuantity: 10,
     lastPurchasePrice: 54.00,
-    alertThresholdPercent: 25, // 80% is normal
     unit: 'un',
     category: 'Rouparia & Enxoval',
     lastPurchaseDate: '2026-08-10',
@@ -570,9 +565,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Shampoo & Condicionador 2 em 1 30ml',
     brandModel: 'Real Amenities - Frasco 30ml',
     quantity: 85,
-    targetQuantity: 200,
+    minQuantity: 30,
     lastPurchasePrice: 1.25,
-    alertThresholdPercent: 20, // 42.5% is normal
     unit: 'un',
     category: 'Higiene & Amenities',
     lastPurchaseDate: '2026-09-02',
@@ -584,9 +578,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Refrigerante Coca-Cola Lata 350ml',
     brandModel: 'Coca-Cola - Original Sabor',
     quantity: 36,
-    targetQuantity: 48,
+    minQuantity: 12,
     lastPurchasePrice: 3.40,
-    alertThresholdPercent: 25, // 75% is normal
     unit: 'lata',
     category: 'Frigobar & Bebidas',
     lastPurchaseDate: '2026-09-04',
@@ -598,9 +591,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Papel Higiênico Folha Dupla Fardo c/ 64',
     brandModel: 'Neve Institucional - Rolos 30m',
     quantity: 14,
-    targetQuantity: 20,
+    minQuantity: 5,
     lastPurchasePrice: 79.90,
-    alertThresholdPercent: 20, // 70% is normal
     unit: 'fardo',
     category: 'Limpeza & Lavanderia',
     lastPurchaseDate: '2026-08-25',
@@ -612,9 +604,8 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     product: 'Café Especial em Grãos 1kg',
     brandModel: 'Pilão - Espresso Gourmet Torra Média',
     quantity: 9,
-    targetQuantity: 15,
+    minQuantity: 3,
     lastPurchasePrice: 44.00,
-    alertThresholdPercent: 25, // 60% is normal
     unit: 'pct',
     category: 'Alimentos & Café da Manhã',
     lastPurchaseDate: '2026-09-05',

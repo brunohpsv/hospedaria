@@ -9,6 +9,7 @@ interface StatusBarProps {
   onClearData: () => void;
   isCloudSynced?: boolean;
   onLogout?: () => void;
+  notification?: string | null;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -18,6 +19,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   onClearData,
   isCloudSynced = true,
   onLogout,
+  notification,
 }) => {
   const [time, setTime] = useState<string>('');
   const { showConfirm } = useDialog();
@@ -61,6 +63,15 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <span>
           OCUPAÇÃO: <strong>{occupied}/{rooms.length}</strong> ({occupancyPercent}%)
         </span>
+
+        {notification && (
+          <>
+            <span className="text-gray-400">|</span>
+            <span className="bg-black text-white px-1.5 py-0.5 border border-black font-bold text-[10px]">
+              {notification}
+            </span>
+          </>
+        )}
       </div>
 
       <div className="flex items-center space-x-2">

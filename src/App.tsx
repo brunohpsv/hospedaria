@@ -1213,7 +1213,7 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-white text-black font-mono flex flex-col selection:bg-[#FFFFCC] selection:text-black">
+    <div className="h-screen w-screen overflow-hidden bg-white text-black font-mono flex flex-col selection:bg-green-300 selection:text-emerald-950">
       {/* Top Windows Notepad Header Bar & Navigation */}
       <WindowHeader
         activeTab={activeTab}
@@ -1341,6 +1341,7 @@ export default function App() {
         onClearData={handleClearData}
         isCloudSynced={isCloudSynced}
         onLogout={handleLogout}
+        notification={notification}
       />
 
       {/* TXT Voucher Export Modal */}

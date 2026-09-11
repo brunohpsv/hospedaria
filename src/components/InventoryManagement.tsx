@@ -13,7 +13,6 @@ import {
   RotateCcw,
   CheckCircle2,
   Boxes,
-  HelpCircle,
 } from 'lucide-react';
 
 interface InventoryManagementProps {
@@ -58,15 +57,14 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const [preselectedItemIdForExit, setPreselectedItemIdForExit] = useState<string>('');
 
-  // Form states for Item (Novo / Edição)
+  // Form states for Item (Novo / Edição) - Quantidade Mínima absoluta (sem porcentagem e sem quantidade alvo)
   const [itemForm, setItemForm] = useState({
     code: '',
     product: '',
     brandModel: '',
-    quantity: 0,
-    targetQuantity: 100,
+    quantity: 10,
+    minQuantity: 5,
     lastPurchasePrice: 0,
-    alertThresholdPercent: 20, // Default 20%
     unit: 'un',
     category: 'Geral',
     notes: '',
@@ -91,9 +89,8 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
       product: '',
       brandModel: '',
       quantity: 10,
-      targetQuantity: 50,
+      minQuantity: 5,
       lastPurchasePrice: 0,
-      alertThresholdPercent: 20,
       unit: 'un',
       category: 'Frigobar & Bebidas',
       notes: '',
@@ -108,9 +105,8 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
       product: item.product,
       brandModel: item.brandModel,
       quantity: item.quantity,
-      targetQuantity: item.targetQuantity || 100,
+      minQuantity: item.minQuantity ?? 5,
       lastPurchasePrice: item.lastPurchasePrice,
-      alertThresholdPercent: item.alertThresholdPercent ?? 20,
       unit: item.unit || 'un',
       category: item.category || 'Geral',
       notes: item.notes || '',
@@ -134,18 +130,14 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
       return;
     }
 
-    const targetQty = Number(itemForm.targetQuantity) > 0 ? Number(itemForm.targetQuantity) : 100;
-    const alertPercent = Number(itemForm.alertThresholdPercent) >= 0 ? Number(itemForm.alertThresholdPercent) : 20;
-
     const saved: InventoryItem = {
       id: editingItem ? editingItem.id : `inv-${Date.now()}`,
       code: itemForm.code.trim().toUpperCase(),
       product: itemForm.product.trim(),
       brandModel: itemForm.brandModel.trim(),
       quantity: Math.max(0, Number(itemForm.quantity) || 0),
-      targetQuantity: targetQty,
+      minQuantity: Math.max(0, Number(itemForm.minQuantity) || 0),
       lastPurchasePrice: Math.max(0, Number(itemForm.lastPurchasePrice) || 0),
-      alertThresholdPercent: alertPercent,
       unit: itemForm.unit.trim() || 'un',
       category: itemForm.category.trim() || 'Geral',
       lastPurchaseDate: new Date().toISOString().split('T')[0],
@@ -177,8 +169,6 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
   // Open Saída modal
   const handleOpenExitModal = (itemId?: string) => {
     const selectedId = itemId || (items.length > 0 ? items[0].id : '');
-    const foundItem = items.find((i) => i.id === selectedId);
-
     setPreselectedItemIdForExit(selectedId);
     setExitForm({
       itemId: selectedId,
@@ -246,14 +236,13 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
     onRegisterExit(exitRecord, newQuantity);
     setIsExitModalOpen(false);
 
-    // Check if new quantity fell below alert threshold
-    const targetQty = targetItem.targetQuantity || 100;
-    const currentPercent = (newQuantity / targetQty) * 100;
-    const isNowCritical = currentPercent <= targetItem.alertThresholdPercent;
+    // Check if new quantity fell at or below minQuantity alert threshold
+    const minQty = targetItem.minQuantity ?? 0;
+    const isNowCritical = newQuantity <= minQty;
 
     if (isNowCritical) {
       showAlert(
-        `Saída de ${qtyToExit} ${targetItem.unit || 'un'} registrada!\n\nATENÇÃO: O item "${targetItem.product}" atingiu nível crítico (${Math.round(currentPercent)}%, abaixo do limite de ${targetItem.alertThresholdPercent}%).\nEle foi movido para o topo da lista em vermelho.`,
+        `Saída de ${qtyToExit} ${targetItem.unit || 'un'} registrada!\n\nATENÇÃO: O item "${targetItem.product}" atingiu nível crítico (${newQuantity} ${targetItem.unit || 'un'}, no limite mínimo de ${minQty} ${targetItem.unit || 'un'}).\nEle foi movido para o topo da lista em destaque vermelho claro.`,
         '⚠️ ESTOQUE CRÍTICO'
       );
     } else {
@@ -279,34 +268,32 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
     });
   };
 
-  // Calculate percentage and status for each item
-  // "quando estiver abaixo de X% deve ficar em primeiro lugar na lista em vermelho claro"
+  // Calculate status for each item:
+  // "quando estiver abaixo de X (quantidade mínima) deve ficar em primeiro lugar na lista em vermelho claro"
   const itemsWithComputedStatus = useMemo(() => {
     return items.map((item) => {
-      const base = item.targetQuantity > 0 ? item.targetQuantity : 100;
-      const percent = (item.quantity / base) * 100;
-      const threshold = item.alertThresholdPercent ?? 20;
-      const isBelowAlert = percent <= threshold || item.quantity === 0;
+      const minQty = typeof item.minQuantity === 'number' ? item.minQuantity : 0;
+      const isBelowAlert = item.quantity <= minQty;
 
       return {
         ...item,
-        currentPercent: percent,
+        minQuantity: minQty,
         isBelowAlert,
       };
     });
   }, [items]);
 
-  // Sort items: Items below X% MUST appear at the very first place (em primeiro lugar na lista)!
+  // Sort items: Items below minQuantity MUST appear at the very first place (em primeiro lugar na lista)!
   const sortedItems = useMemo(() => {
     const sorted = [...itemsWithComputedStatus];
     sorted.sort((a, b) => {
-      // 1. Items below alert threshold come first
+      // 1. Items below or at alert threshold come first
       if (a.isBelowAlert && !b.isBelowAlert) return -1;
       if (!a.isBelowAlert && b.isBelowAlert) return 1;
 
-      // 2. Among items in alert, sort by lowest percentage first (most urgent)
+      // 2. Among items in alert, sort by lowest quantity first (most urgent)
       if (a.isBelowAlert && b.isBelowAlert) {
-        return a.currentPercent - b.currentPercent;
+        return a.quantity - b.quantity;
       }
 
       // 3. Normal items sorted alphabetically by product name
@@ -385,31 +372,29 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
 ESTABELECIMENTO: ${establishmentName.toUpperCase()}
 DATA DE EMISSÃO: ${now}
 TOTAL DE PRODUTOS CADASTRADOS: ${totalItemsCount}
-PRODUTOS EM NÍVEL CRÍTICO (ABAIXO DO LIMITE): ${alertItemsCount}
+PRODUTOS EM NÍVEL CRÍTICO (QUANTIDADE <= MÍNIMO): ${alertItemsCount}
 VALOR TOTAL ESTIMADO DO ESTOQUE: ${totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
 TOTAL DE SAÍDAS REGISTRADAS: ${totalExitsCount} (${totalExitedUnits} unidades baixadas)
 
 --------------------------------------------------------------------------------
-1. ITENS EM NÍVEL CRÍTICO (ABAIXO DE X% - PRIORIDADE DE REPOSIÇÃO)
+1. ITENS EM NÍVEL CRÍTICO (PRIORIDADE NO TOPO DA LISTA - REPOSIÇÃO IMEDIATA)
 --------------------------------------------------------------------------------
 `;
 
     const criticalItems = itemsWithComputedStatus.filter((i) => i.isBelowAlert);
     if (criticalItems.length === 0) {
-      report += `Nenhum item em nível crítico no momento. Todo o estoque está em conformidade.\n\n`;
+      report += `Nenhum item em nível crítico no momento. Todo o estoque está acima da quantidade mínima.\n\n`;
     } else {
-      report += `CÓDIGO   | PRODUTO                             | MARCA E MODELO               | QTD | ALVO | % ATUAL | LIMITE % | ÚLTIMA COMPRA\n`;
-      report += `---------+-------------------------------------+------------------------------+-----+------+---------+----------+--------------\n`;
+      report += `CÓDIGO   | PRODUTO                             | MARCA E MODELO               | QTD | MÍNIMO | ÚLTIMA COMPRA\n`;
+      report += `---------+-------------------------------------+------------------------------+-----+--------+--------------\n`;
       criticalItems.forEach((it) => {
         const cod = it.code.padEnd(8).substring(0, 8);
         const prod = it.product.padEnd(35).substring(0, 35);
         const brand = it.brandModel.padEnd(28).substring(0, 28);
-        const qty = String(it.quantity).padStart(3);
-        const target = String(it.targetQuantity).padStart(4);
-        const pct = `${Math.round(it.currentPercent)}%`.padStart(7);
-        const lim = `${it.alertThresholdPercent}%`.padStart(8);
+        const qty = `${it.quantity} ${it.unit || 'un'}`.padStart(5);
+        const minQ = `${it.minQuantity} ${it.unit || 'un'}`.padStart(6);
         const price = it.lastPurchasePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).padStart(13);
-        report += `${cod} | ${prod} | ${brand} | ${qty} | ${target} | ${pct} | ${lim} | ${price}\n`;
+        report += `${cod} | ${prod} | ${brand} | ${qty} | ${minQ} | ${price}\n`;
       });
       report += `\n`;
     }
@@ -417,19 +402,18 @@ TOTAL DE SAÍDAS REGISTRADAS: ${totalExitsCount} (${totalExitedUnits} unidades b
     report += `--------------------------------------------------------------------------------
 2. RELAÇÃO COMPLETA DE ITENS EM ESTOQUE
 --------------------------------------------------------------------------------
-CÓDIGO   | PRODUTO                             | MARCA E MODELO               | QTD | ALVO | % ATUAL | PREÇO COMPRA | STATUS
----------+-------------------------------------+------------------------------+-----+------+---------+--------------+--------------
+CÓDIGO   | PRODUTO                             | MARCA E MODELO               | QTD | MÍNIMO | PREÇO COMPRA | STATUS
+---------+-------------------------------------+------------------------------+-----+--------+--------------+--------------
 `;
     sortedItems.forEach((it) => {
       const cod = it.code.padEnd(8).substring(0, 8);
       const prod = it.product.padEnd(35).substring(0, 35);
       const brand = it.brandModel.padEnd(28).substring(0, 28);
-      const qty = String(it.quantity).padStart(3);
-      const target = String(it.targetQuantity).padStart(4);
-      const pct = `${Math.round(it.currentPercent)}%`.padStart(7);
+      const qty = `${it.quantity} ${it.unit || 'un'}`.padStart(5);
+      const minQ = `${it.minQuantity} ${it.unit || 'un'}`.padStart(6);
       const price = it.lastPurchasePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).padStart(12);
       const st = it.isBelowAlert ? '🚨 CRÍTICO' : 'OK NORMAL';
-      report += `${cod} | ${prod} | ${brand} | ${qty} | ${target} | ${pct} | ${price} | ${st}\n`;
+      report += `${cod} | ${prod} | ${brand} | ${qty} | ${minQ} | ${price} | ${st}\n`;
     });
 
     report += `\n--------------------------------------------------------------------------------
@@ -470,8 +454,8 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
 
   return (
     <div className="h-full flex flex-col bg-white font-mono select-none overflow-hidden">
-      {/* Top Banner with Stats & Controls */}
-      <div className="bg-[#FFFFEE] border-b-2 border-black p-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
+      {/* Top Banner with Stats & Controls - Clean Monochrome Notepad Style */}
+      <div className="bg-white border-b border-black p-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center space-x-2">
           <div className="bg-black text-white p-1.5 flex items-center justify-center">
             <Package className="w-5 h-5" />
@@ -480,9 +464,9 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
             <div className="text-sm font-bold tracking-tight text-black flex items-center gap-2">
               <span>CONTROLE DE ESTOQUE & ALMOXARIFADO</span>
               {alertItemsCount > 0 && (
-                <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 animate-pulse flex items-center gap-1 border border-black">
+                <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 border border-black flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />
-                  {alertItemsCount} {alertItemsCount === 1 ? 'ITEM CRÍTICO' : 'ITENS CRÍTICOS'}
+                  {alertItemsCount} {alertItemsCount === 1 ? 'ITEM EM ALERTA' : 'ITENS EM ALERTA'}
                 </span>
               )}
             </div>
@@ -492,55 +476,55 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Action Buttons - Clean Minimalist Windows Style */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
             onClick={handleOpenNewItemModal}
-            className="px-2.5 py-1 border border-black bg-[#FFFFCC] hover:bg-[#ffff99] font-bold text-xs cursor-pointer flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            className="px-2.5 py-1 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>[ + NOVO PRODUTO ]</span>
+            <span>+ NOVO PRODUTO</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleOpenExitModal()}
-            className="px-2.5 py-1 border border-black bg-amber-200 hover:bg-amber-300 font-bold text-xs cursor-pointer flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors"
             title="Registrar saída / baixa de mercadoria do estoque"
           >
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>[ 📤 REGISTRAR SAÍDA ]</span>
+            <span>📤 REGISTRAR SAÍDA</span>
           </button>
 
           <button
             type="button"
             onClick={handleDownloadTxtReport}
-            className="px-2 py-1 border border-black bg-white hover:bg-gray-100 font-bold text-xs cursor-pointer flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white font-bold text-xs cursor-pointer flex items-center gap-1 transition-colors"
             title="Baixar relatório completo do estoque em formato Bloco de Notas TXT"
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>[ RELATÓRIO TXT ]</span>
+            <span>RELATÓRIO TXT</span>
           </button>
         </div>
       </div>
 
       {/* Sub-Navigation (Tabs: Itens em Estoque vs Saída) */}
-      <div className="bg-gray-100 border-b border-black px-2 py-1.5 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
+      <div className="bg-gray-100 border-b border-black px-2 py-1 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
         <div className="flex items-center space-x-1">
           <button
             type="button"
             onClick={() => setActiveSubTab('items')}
-            className={`px-3 py-1 border border-black font-bold cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1 border border-black font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${
               activeSubTab === 'items'
-                ? 'bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                : 'bg-gray-200 hover:bg-white text-gray-700'
+                ? 'bg-black text-white'
+                : 'bg-white text-black hover:bg-gray-200'
             }`}
           >
             <Boxes className="w-3.5 h-3.5" />
             <span>ITENS EM ESTOQUE ({totalItemsCount})</span>
             {alertItemsCount > 0 && (
-              <span className="bg-red-600 text-white text-[10px] px-1 py-0 font-bold">
+              <span className="bg-red-600 text-white text-[10px] px-1 py-0 font-bold ml-1">
                 {alertItemsCount}
               </span>
             )}
@@ -549,10 +533,10 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
           <button
             type="button"
             onClick={() => setActiveSubTab('saidas')}
-            className={`px-3 py-1 border border-black font-bold cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1 border border-black font-bold cursor-pointer flex items-center gap-1.5 transition-colors ${
               activeSubTab === 'saidas'
-                ? 'bg-[#FFFFCC] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-black'
-                : 'bg-gray-200 hover:bg-white text-gray-700'
+                ? 'bg-black text-white'
+                : 'bg-white text-black hover:bg-gray-200'
             }`}
           >
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -570,7 +554,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
               placeholder={activeSubTab === 'items' ? 'Buscar código, produto, marca...' : 'Buscar saídas, quartos, destino...'}
               value={internalSearch}
               onChange={(e) => setInternalSearch(e.target.value)}
-              className="outline-none text-xs w-44 md:w-60 bg-transparent placeholder-gray-400"
+              className="outline-none text-xs w-44 md:w-56 bg-transparent placeholder-gray-400"
             />
             {internalSearch && (
               <button
@@ -589,10 +573,10 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="border border-black bg-white px-2 py-0.5 text-xs outline-none cursor-pointer"
+                className="border border-black bg-white px-2 py-0.5 text-xs outline-none cursor-pointer font-bold"
               >
-                <option value="all">Todos os Status ({totalItemsCount})</option>
-                <option value="alert">🚨 Abaixo de X% - Críticos ({alertItemsCount})</option>
+                <option value="all">Todos os Itens ({totalItemsCount})</option>
+                <option value="alert">🚨 Em Alerta / Crítico ({alertItemsCount})</option>
                 <option value="normal">Normal ({totalItemsCount - alertItemsCount})</option>
               </select>
 
@@ -620,19 +604,19 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
       <div className="flex-1 overflow-auto p-2">
         {/* VIEW 1: ITENS EM ESTOQUE */}
         {activeSubTab === 'items' && (
-          <div className="border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          <div className="border border-black bg-white">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-black text-white select-none">
-                    <th className="p-2 border-r border-gray-700 w-24">STATUS</th>
-                    <th className="p-2 border-r border-gray-700 w-28">CÓDIGO</th>
+                    <th className="p-2 border-r border-gray-700 w-28">STATUS</th>
+                    <th className="p-2 border-r border-gray-700 w-24">CÓDIGO</th>
                     <th className="p-2 border-r border-gray-700">PRODUTO</th>
                     <th className="p-2 border-r border-gray-700">MARCA E MODELO</th>
                     <th className="p-2 border-r border-gray-700 text-center w-28">QUANTIDADE</th>
                     <th className="p-2 border-r border-gray-700 text-center w-28">LIMITE ALERTA</th>
-                    <th className="p-2 border-r border-gray-700 text-right w-32">PREÇO ÚLTIMA COMPRA</th>
-                    <th className="p-2 border-r border-gray-700 text-right w-28">TOTAL ESTOQUE</th>
+                    <th className="p-2 border-r border-gray-700 text-right w-32">ÚLTIMA COMPRA</th>
+                    <th className="p-2 border-r border-gray-700 text-right w-28">VALOR TOTAL</th>
                     <th className="p-2 text-center w-36">AÇÕES</th>
                   </tr>
                 </thead>
@@ -651,10 +635,10 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                           <button
                             type="button"
                             onClick={handleOpenNewItemModal}
-                            className="mt-2 px-3 py-1.5 border border-black bg-[#FFFFCC] hover:bg-[#ffff99] font-bold text-xs cursor-pointer inline-flex items-center gap-1"
+                            className="mt-2 px-3 py-1 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer inline-flex items-center gap-1"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                            <span>[ Cadastrar Primeiro Produto ]</span>
+                            <span>Cadastrar Primeiro Produto</span>
                           </button>
                         </div>
                       </td>
@@ -662,7 +646,6 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   ) : (
                     filteredItems.map((item) => {
                       const isAlert = item.isBelowAlert;
-                      const roundedPercent = Math.round(item.currentPercent);
                       const totalItemValue = item.quantity * item.lastPurchasePrice;
 
                       return (
@@ -670,27 +653,27 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                           key={item.id}
                           className={`transition-colors ${
                             isAlert
-                              ? 'bg-red-100 hover:bg-red-200 border-b-2 border-red-400 text-red-950 font-medium'
-                              : 'bg-white hover:bg-[#FFFFEE] text-gray-900'
+                              ? 'bg-red-100 hover:bg-red-200 border-b border-red-300 text-red-950 font-medium'
+                              : 'bg-white hover:bg-gray-50 text-gray-900'
                           }`}
                         >
-                          {/* STATUS & ALERTA */}
+                          {/* STATUS & ALERTA - VERMELHO CLARO SE QUANTIDADE <= LIMITE */}
                           <td className="p-2 border-r border-gray-300">
                             {isAlert ? (
                               <span
-                                className="inline-flex items-center gap-1 bg-red-600 text-white font-bold text-[10px] px-1.5 py-0.5 border border-red-800 animate-pulse"
-                                title={`ATENÇÃO: Estoque em ${roundedPercent}%, abaixo do limite configurado de ${item.alertThresholdPercent}%!`}
+                                className="inline-flex items-center gap-1 bg-red-600 text-white font-bold text-[10px] px-1.5 py-0.5 border border-red-800"
+                                title={`ATENÇÃO: Quantidade atual (${item.quantity}) está abaixo ou igual ao limite de alerta (${item.minQuantity})!`}
                               >
                                 <AlertTriangle className="w-3 h-3 shrink-0" />
-                                <span>🚨 {roundedPercent}% CRÍTICO</span>
+                                <span>🚨 CRÍTICO</span>
                               </span>
                             ) : (
                               <span
                                 className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] px-1.5 py-0.5 border border-emerald-400"
-                                title={`Estoque normal em ${roundedPercent}% (limite mínimo: ${item.alertThresholdPercent}%)`}
+                                title={`Estoque normal (${item.quantity} > ${item.minQuantity})`}
                               >
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>{roundedPercent}% OK</span>
+                                <span>NORMAL</span>
                               </span>
                             )}
                           </td>
@@ -717,7 +700,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                             <div className="text-gray-800">{item.brandModel}</div>
                           </td>
 
-                          {/* QUANTIDADE */}
+                          {/* QUANTIDADE ATUAL */}
                           <td className="p-2 border-r border-gray-300 text-center">
                             <div className="font-bold text-sm">
                               {item.quantity}{' '}
@@ -725,18 +708,12 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                                 {item.unit || 'un'}
                               </span>
                             </div>
-                            <div className="text-[10px] text-gray-500">
-                              Alvo: {item.targetQuantity} {item.unit || 'un'}
-                            </div>
                           </td>
 
-                          {/* LIMITE DE ALERTA (X%) */}
+                          {/* LIMITE DE ALERTA (QUANTIDADES, NÃO PORCENTAGENS) */}
                           <td className="p-2 border-r border-gray-300 text-center">
-                            <div className="font-bold text-xs text-red-900 bg-red-50 inline-block px-1.5 py-0.5 border border-red-200">
-                              Abaixo de {item.alertThresholdPercent}%
-                            </div>
-                            <div className="text-[10px] text-gray-500">
-                              (≤ {Math.round((item.targetQuantity * item.alertThresholdPercent) / 100)} {item.unit || 'un'})
+                            <div className="font-bold text-xs inline-block px-1.5 py-0.5 border border-gray-300 bg-white">
+                              ≤ {item.minQuantity} {item.unit || 'un'}
                             </div>
                           </td>
 
@@ -764,7 +741,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                               <button
                                 type="button"
                                 onClick={() => handleOpenExitModal(item.id)}
-                                className="px-1.5 py-0.5 border border-black bg-amber-100 hover:bg-amber-300 font-bold text-[10px] cursor-pointer"
+                                className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white font-bold text-[10px] cursor-pointer transition-colors"
                                 title="Dar saída neste item"
                               >
                                 [ Saída ]
@@ -773,14 +750,14 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                                 type="button"
                                 onClick={() => handleOpenEditItemModal(item)}
                                 className="p-1 border border-black bg-white hover:bg-gray-200 cursor-pointer"
-                                title="Editar produto e percentual de alerta"
+                                title="Editar produto e limite de alerta"
                               >
                                 <Edit2 className="w-3 h-3" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteItemClick(item)}
-                                className="p-1 border border-black bg-white hover:bg-red-500 hover:text-white cursor-pointer"
+                                className="p-1 border border-black bg-white hover:bg-red-600 hover:text-white cursor-pointer"
                                 title="Excluir produto"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -801,29 +778,29 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
         {activeSubTab === 'saidas' && (
           <div className="space-y-3">
             {/* Header of Saída section */}
-            <div className="border-2 border-black bg-[#FFFFEE] p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex flex-wrap items-center justify-between gap-3">
+            <div className="border border-black bg-white p-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-bold text-sm text-black flex items-center gap-1.5">
-                  <ArrowUpRight className="w-4 h-4 text-amber-700" />
+                  <ArrowUpRight className="w-4 h-4 text-gray-800" />
                   <span>REGISTRO E ORGANIZAÇÃO DE SAÍDAS DO ESTOQUE</span>
                 </div>
                 <div className="text-xs text-gray-600 mt-0.5">
-                  Aqui ficam registradas todas as baixas para quartos, frigobares, áreas comuns e consumo da pousada.
+                  Aqui ficam organizadas todas as saídas e baixas para quartos, frigobares, áreas comuns e reposição.
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => handleOpenExitModal()}
-                className="px-3 py-1.5 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] active:translate-x-0.5 active:translate-y-0.5"
+                className="px-3 py-1 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>[ + REGISTRAR NOVA SAÍDA ]</span>
+                <span>+ REGISTRAR NOVA SAÍDA</span>
               </button>
             </div>
 
             {/* Table of Saídas */}
-            <div className="border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <div className="border border-black bg-white">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -846,13 +823,13 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                           <ArrowUpRight className="w-8 h-8 mx-auto text-gray-400 mb-2" />
                           <div className="font-bold text-black text-sm">Nenhuma saída de estoque registrada</div>
                           <div className="text-xs mt-1">
-                            Use o botão "[ + REGISTRAR NOVA SAÍDA ]" para baixar itens para quartos, reposição ou consumo.
+                            Clique em "+ REGISTRAR NOVA SAÍDA" para baixar itens para quartos, reposição ou consumo.
                           </div>
                         </td>
                       </tr>
                     ) : (
                       filteredExits.map((exit) => (
-                        <tr key={exit.id} className="hover:bg-[#FFFFEE] transition-colors">
+                        <tr key={exit.id} className="hover:bg-gray-50 transition-colors">
                           {/* DATA E HORA */}
                           <td className="p-2 border-r border-gray-300 whitespace-nowrap">
                             <span className="font-bold">{exit.date}</span>{' '}
@@ -877,13 +854,13 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                           </td>
 
                           {/* QTD SAÍDA */}
-                          <td className="p-2 border-r border-gray-300 text-center font-bold text-sm text-amber-900 bg-amber-50">
+                          <td className="p-2 border-r border-gray-300 text-center font-bold text-sm text-red-900 bg-red-50">
                             - {exit.quantity}
                           </td>
 
                           {/* DESTINO / LOCAL */}
                           <td className="p-2 border-r border-gray-300 font-bold">
-                            <span className="bg-[#FFFFCC] px-1.5 py-0.5 border border-black/20">
+                            <span className="bg-gray-100 px-1.5 py-0.5 border border-gray-300">
                               {exit.destination}
                             </span>
                           </td>
@@ -903,11 +880,11 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                             <button
                               type="button"
                               onClick={() => handleCancelExitClick(exit)}
-                              className="px-2 py-0.5 border border-black bg-white hover:bg-amber-200 text-xs font-bold cursor-pointer inline-flex items-center gap-1"
+                              className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1 transition-colors"
                               title="Estornar esta saída e devolver a quantidade ao estoque"
                             >
-                              <RotateCcw className="w-3 h-3 text-amber-700" />
-                              <span>[ Estornar ]</span>
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Estornar</span>
                             </button>
                           </td>
                         </tr>
@@ -922,18 +899,18 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
       </div>
 
       {/* Footer Info Bar */}
-      <div className="bg-gray-100 border-t-2 border-black p-2 flex flex-wrap items-center justify-between text-xs shrink-0 select-none">
+      <div className="bg-white border-t border-black p-2 flex flex-wrap items-center justify-between text-xs shrink-0 select-none">
         <div className="flex items-center space-x-4 flex-wrap">
           <div>
             PRODUTOS: <span className="font-bold">{totalItemsCount}</span>
           </div>
           <span className="text-gray-400">|</span>
           <div>
-            TOTAL EM PEÇAS: <span className="font-bold">{totalStockUnits} un</span>
+            TOTAL EM ESTOQUE: <span className="font-bold">{totalStockUnits} un</span>
           </div>
           <span className="text-gray-400">|</span>
           <div>
-            VALOR ESTIMADO DO ESTOQUE:{' '}
+            VALOR TOTAL ESTIMADO:{' '}
             <span className="font-bold text-emerald-800">
               {totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </span>
@@ -941,14 +918,14 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
           <span className="text-gray-400">|</span>
           <div>
             TOTAL DE SAÍDAS:{' '}
-            <span className="font-bold text-amber-900">
+            <span className="font-bold text-gray-900">
               {totalExitsCount} ({totalExitedUnits} un)
             </span>
           </div>
         </div>
 
         <div className="text-[11px] text-gray-600 italic">
-          * Itens abaixo de X% ficam no topo da lista em vermelho claro automaticamente.
+          * Itens com quantidade igual ou abaixo do limite de alerta ficam no topo da lista destacados em vermelho claro.
         </div>
       </div>
 
@@ -957,7 +934,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
       {/* ========================================================================= */}
       {isItemModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 md:p-4 font-mono select-none">
-          <div className="bg-white border-2 border-black w-full max-w-xl max-h-[92vh] flex flex-col shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-lg max-h-[92vh] flex flex-col shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
             {/* Title Bar */}
             <div className="bg-black text-white px-3 py-1.5 flex items-center justify-between font-bold text-xs">
               <div className="flex items-center space-x-2">
@@ -981,7 +958,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                 {/* Código */}
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">
-                    CÓDIGO / SKU <span className="text-red-600">*</span>
+                    CÓDIGO <span className="text-red-600">*</span>
                   </label>
                   <input
                     type="text"
@@ -989,7 +966,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     value={itemForm.code}
                     onChange={(e) => setItemForm({ ...itemForm, code: e.target.value })}
                     placeholder="Ex: BEB-01"
-                    className="w-full border border-black p-1.5 bg-white font-bold uppercase focus:bg-[#FFFFCC] outline-none"
+                    className="w-full border border-black p-1.5 bg-white font-bold uppercase outline-none"
                   />
                 </div>
 
@@ -1002,7 +979,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     value={itemForm.category}
                     onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
                     placeholder="Ex: Frigobar & Bebidas, Limpeza, Rouparia..."
-                    className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none"
+                    className="w-full border border-black p-1.5 bg-white outline-none"
                   />
                   <datalist id="categories-datalist">
                     <option value="Frigobar & Bebidas" />
@@ -1019,7 +996,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
               {/* Produto */}
               <div>
                 <label className="block font-bold text-gray-700 mb-1">
-                  PRODUTO (NOME COMPLETO) <span className="text-red-600">*</span>
+                  PRODUTO <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
@@ -1027,7 +1004,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   value={itemForm.product}
                   onChange={(e) => setItemForm({ ...itemForm, product: e.target.value })}
                   placeholder="Ex: Água Mineral 500ml Sem Gás"
-                  className="w-full border border-black p-1.5 bg-white font-bold focus:bg-[#FFFFCC] outline-none"
+                  className="w-full border border-black p-1.5 bg-white font-bold outline-none"
                 />
               </div>
 
@@ -1042,11 +1019,11 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   value={itemForm.brandModel}
                   onChange={(e) => setItemForm({ ...itemForm, brandModel: e.target.value })}
                   placeholder="Ex: Crystal - Garrafa Pet 500ml"
-                  className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none"
+                  className="w-full border border-black p-1.5 bg-white outline-none"
                 />
               </div>
 
-              {/* Quantidade, Alvo & Unidade */}
+              {/* Quantidade Atual, Quantidade Mínima de Alerta e Unidade */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-50 p-2.5 border border-black">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">QUANTIDADE ATUAL</label>
@@ -1057,22 +1034,22 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     required
                     value={itemForm.quantity}
                     onChange={(e) => setItemForm({ ...itemForm, quantity: Number(e.target.value) })}
-                    className="w-full border border-black p-1.5 bg-white font-bold text-sm focus:bg-[#FFFFCC] outline-none"
+                    className="w-full border border-black p-1.5 bg-white font-bold text-sm outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1" title="Capacidade total padrão para cálculo da %">
-                    ESTOQUE ALVO / CAPACIDADE
+                  <label className="block font-bold text-red-900 mb-1" title="Quando o estoque for menor ou igual a este valor, o produto ficará no topo da lista em vermelho">
+                    ALERTA (QTD MÍNIMA)
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     step="1"
                     required
-                    value={itemForm.targetQuantity}
-                    onChange={(e) => setItemForm({ ...itemForm, targetQuantity: Number(e.target.value) })}
-                    className="w-full border border-black p-1.5 bg-white text-sm focus:bg-[#FFFFCC] outline-none"
+                    value={itemForm.minQuantity}
+                    onChange={(e) => setItemForm({ ...itemForm, minQuantity: Number(e.target.value) })}
+                    className="w-full border border-red-600 p-1.5 bg-white text-sm font-bold text-red-950 outline-none"
                   />
                 </div>
 
@@ -1083,48 +1060,24 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     value={itemForm.unit}
                     onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
                     placeholder="un, pct, cx, gl, kg"
-                    className="w-full border border-black p-1.5 bg-white text-sm focus:bg-[#FFFFCC] outline-none"
+                    className="w-full border border-black p-1.5 bg-white text-sm outline-none"
                   />
                 </div>
               </div>
 
-              {/* PREÇO DA ÚLTIMA COMPRA & ALERTA X% */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#FFFFEE] p-3 border-2 border-black">
-                <div>
-                  <label className="block font-bold text-gray-800 mb-1">PREÇO DA ÚLTIMA COMPRA (R$)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={itemForm.lastPurchasePrice}
-                    onChange={(e) => setItemForm({ ...itemForm, lastPurchasePrice: Number(e.target.value) })}
-                    placeholder="0.00"
-                    className="w-full border border-black p-1.5 bg-white font-bold text-sm focus:bg-[#FFFFCC] outline-none"
-                  />
-                  <div className="text-[10px] text-gray-600 mt-1">Custo unitário da última nota fiscal</div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-red-900 mb-1 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-                    <span>ALERTA SE ABAIXO DE X%</span>
-                  </label>
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      step="1"
-                      value={itemForm.alertThresholdPercent}
-                      onChange={(e) => setItemForm({ ...itemForm, alertThresholdPercent: Number(e.target.value) })}
-                      className="w-full border-2 border-red-600 p-1.5 bg-white font-bold text-red-950 text-sm focus:bg-red-50 outline-none"
-                    />
-                    <span className="font-bold text-base">%</span>
-                  </div>
-                  <div className="text-[10px] text-red-700 mt-1 font-medium">
-                    Ficará no topo em vermelho claro quando quantidade for menor que este %!
-                  </div>
-                </div>
+              {/* Preço da Última Compra */}
+              <div>
+                <label className="block font-bold text-gray-800 mb-1">PREÇO DA ÚLTIMA COMPRA (R$)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={itemForm.lastPurchasePrice}
+                  onChange={(e) => setItemForm({ ...itemForm, lastPurchasePrice: Number(e.target.value) })}
+                  placeholder="0.00"
+                  className="w-full border border-black p-1.5 bg-white font-bold text-sm outline-none"
+                />
+                <div className="text-[10px] text-gray-600 mt-1">Custo unitário da última nota fiscal ou pedido de compra.</div>
               </div>
 
               {/* Observações */}
@@ -1135,7 +1088,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   value={itemForm.notes}
                   onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
                   placeholder="Ex: Prateleira B3, depósito da recepção..."
-                  className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none text-xs resize-none"
+                  className="w-full border border-black p-1.5 bg-white outline-none text-xs resize-none"
                 />
               </div>
 
@@ -1150,7 +1103,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] active:translate-x-0.5 active:translate-y-0.5"
+                  className="px-4 py-1.5 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer transition-colors"
                 >
                   [ SALVAR PRODUTO ]
                 </button>
@@ -1165,9 +1118,9 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
       {/* ========================================================================= */}
       {isExitModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 md:p-4 font-mono select-none">
-          <div className="bg-white border-2 border-black w-full max-w-lg max-h-[92vh] flex flex-col shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-lg max-h-[92vh] flex flex-col shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
             {/* Title Bar */}
-            <div className="bg-amber-600 text-white px-3 py-1.5 flex items-center justify-between font-bold text-xs">
+            <div className="bg-black text-white px-3 py-1.5 flex items-center justify-between font-bold text-xs">
               <div className="flex items-center space-x-2">
                 <ArrowUpRight className="w-3.5 h-3.5" />
                 <span>REGISTRAR_SAIDA_DE_ESTOQUE.TXT</span>
@@ -1192,12 +1145,12 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   required
                   value={exitForm.itemId}
                   onChange={(e) => setExitForm({ ...exitForm, itemId: e.target.value })}
-                  className="w-full border-2 border-black p-2 bg-white font-bold text-xs focus:bg-[#FFFFCC] outline-none cursor-pointer"
+                  className="w-full border-2 border-black p-2 bg-white font-bold text-xs outline-none cursor-pointer"
                 >
                   <option value="">-- Escolha um item do estoque --</option>
                   {items.map((it) => (
                     <option key={it.id} value={it.id}>
-                      [{it.code}] {it.product} - {it.brandModel} (Disponível: {it.quantity} {it.unit || 'un'})
+                      [{it.code}] {it.product} - {it.brandModel} (Disponível: {it.quantity} {it.unit || 'un'} | Mín: {it.minQuantity})
                     </option>
                   ))}
                 </select>
@@ -1208,9 +1161,10 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                 const selected = items.find((i) => i.id === exitForm.itemId);
                 if (!selected) return null;
                 const remaining = selected.quantity - (Number(exitForm.quantity) || 0);
+                const willAlert = remaining <= (selected.minQuantity ?? 0);
 
                 return (
-                  <div className="bg-[#FFFFEE] border border-black p-2.5 space-y-1">
+                  <div className="bg-gray-50 border border-black p-2.5 space-y-1">
                     <div className="flex items-center justify-between font-bold text-xs">
                       <span>{selected.product}</span>
                       <span className="bg-black text-white px-1.5 py-0.2 text-[10px]">
@@ -1220,7 +1174,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     <div className="text-[11px] text-gray-700">
                       Marca/Modelo: <strong>{selected.brandModel}</strong>
                     </div>
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-black/20">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-300">
                       <span>
                         Estoque Atual:{' '}
                         <strong>
@@ -1228,11 +1182,24 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                         </strong>
                       </span>
                       <span>
+                        Limite Mínimo:{' '}
+                        <strong>
+                          {selected.minQuantity} {selected.unit || 'un'}
+                        </strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-300">
+                      <span>
                         Ficará com:{' '}
                         <strong className={remaining < 0 ? 'text-red-600 font-bold' : 'text-black'}>
                           {remaining} {selected.unit || 'un'}
                         </strong>
                       </span>
+                      {willAlert && (
+                        <span className="text-red-600 font-bold text-[10px]">
+                          ⚠️ Atingirá o limite de alerta!
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -1250,7 +1217,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   required
                   value={exitForm.quantity}
                   onChange={(e) => setExitForm({ ...exitForm, quantity: Number(e.target.value) })}
-                  className="w-full border-2 border-black p-2 bg-white font-bold text-base focus:bg-[#FFFFCC] outline-none"
+                  className="w-full border-2 border-black p-2 bg-white font-bold text-base outline-none"
                 />
               </div>
 
@@ -1266,7 +1233,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   value={exitForm.destination}
                   onChange={(e) => setExitForm({ ...exitForm, destination: e.target.value })}
                   placeholder="Ex: Quarto 101, Frigobar 204, Cozinha, Recepção..."
-                  className="w-full border border-black p-1.5 bg-white font-bold focus:bg-[#FFFFCC] outline-none"
+                  className="w-full border border-black p-1.5 bg-white font-bold outline-none"
                 />
                 <datalist id="destinations-datalist">
                   {rooms.map((r) => (
@@ -1297,7 +1264,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   value={exitForm.responsibleName}
                   onChange={(e) => setExitForm({ ...exitForm, responsibleName: e.target.value })}
                   placeholder="Nome do funcionário ou responsável"
-                  className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none font-bold"
+                  className="w-full border border-black p-1.5 bg-white outline-none font-bold"
                 />
                 <datalist id="staff-datalist">
                   {employees.map((emp) => (
@@ -1315,7 +1282,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     required
                     value={exitForm.date}
                     onChange={(e) => setExitForm({ ...exitForm, date: e.target.value })}
-                    className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none"
+                    className="w-full border border-black p-1.5 bg-white outline-none"
                   />
                 </div>
                 <div>
@@ -1325,7 +1292,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                     required
                     value={exitForm.time}
                     onChange={(e) => setExitForm({ ...exitForm, time: e.target.value })}
-                    className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none"
+                    className="w-full border border-black p-1.5 bg-white outline-none"
                   />
                 </div>
               </div>
@@ -1338,7 +1305,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                   value={exitForm.notes}
                   onChange={(e) => setExitForm({ ...exitForm, notes: e.target.value })}
                   placeholder="Ex: Troca de enxoval a pedido do hóspede..."
-                  className="w-full border border-black p-1.5 bg-white focus:bg-[#FFFFCC] outline-none text-xs"
+                  className="w-full border border-black p-1.5 bg-white outline-none text-xs"
                 />
               </div>
 
@@ -1353,7 +1320,7 @@ DATA       HORA  | CÓDIGO   | PRODUTO                        | QTD | DESTINO / 
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 border border-black bg-amber-600 text-white hover:bg-amber-700 font-bold text-xs cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] active:translate-x-0.5 active:translate-y-0.5"
+                  className="px-4 py-1.5 border border-black bg-black text-white hover:bg-gray-800 font-bold text-xs cursor-pointer transition-colors"
                 >
                   [ CONFIRMAR SAÍDA ]
                 </button>

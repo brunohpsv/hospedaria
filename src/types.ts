@@ -104,9 +104,8 @@ export interface InventoryItem {
   product: string;
   brandModel: string;
   quantity: number;
-  targetQuantity: number;
+  minQuantity: number; // Limite de alerta em unidades (quando quantity <= minQuantity, o item fica em alerta vermelho no topo)
   lastPurchasePrice: number;
-  alertThresholdPercent: number;
   unit?: string;
   category?: string;
   lastPurchaseDate?: string;
