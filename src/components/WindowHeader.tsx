@@ -118,6 +118,18 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('estoque')}
+            className={`px-2 py-0.5 border border-black cursor-pointer text-xs ${
+              activeTab === 'estoque'
+                ? 'bg-[#FFFFCC] font-bold'
+                : 'bg-white hover:bg-[#FFFFCC]'
+            }`}
+            title="Controle de Estoque e Almoxarifado (F9)"
+          >
+            ESTOQUE (F9)
+          </button>
+
+          <button
             onClick={() => setActiveTab('empresa')}
             className={`px-2 py-0.5 border border-black cursor-pointer text-xs ${
               activeTab === 'empresa'

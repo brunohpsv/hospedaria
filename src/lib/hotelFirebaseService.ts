@@ -11,7 +11,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Room, GuestReservation, RatePlan, ClientAccount, Employee } from '../types';
+import { Room, GuestReservation, RatePlan, ClientAccount, Employee, InventoryItem, StockExitRecord } from '../types';
 import {
   INITIAL_ROOMS,
   INITIAL_GUESTS,
@@ -20,6 +20,8 @@ import {
   INITIAL_WORKPLACES,
   INITIAL_EMPLOYEES,
   STARTER_CLEAN_ROOMS,
+  INITIAL_INVENTORY_ITEMS,
+  INITIAL_STOCK_EXITS,
 } from '../mockData';
 
 function cleanDoc<T extends Record<string, any>>(obj: T): Record<string, any> {
@@ -68,6 +70,8 @@ export async function seedClientFirestoreData(clientId: string, isDemo: boolean 
     const roomsToSeed = isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS;
     const guestsToSeed = isDemo ? INITIAL_GUESTS : [];
     const employeesToSeed = isDemo ? INITIAL_EMPLOYEES : [];
+    const inventoryToSeed = isDemo ? INITIAL_INVENTORY_ITEMS : [];
+    const stockExitsToSeed = isDemo ? INITIAL_STOCK_EXITS : [];
 
     // Seed rooms
     for (const room of roomsToSeed) {
@@ -97,6 +101,16 @@ export async function seedClientFirestoreData(clientId: string, isDemo: boolean 
     // Seed employees
     for (const emp of employeesToSeed) {
       batch.set(clientDoc(clientId, 'employees', emp.id), cleanDoc(emp));
+    }
+
+    // Seed inventory items
+    for (const item of inventoryToSeed) {
+      batch.set(clientDoc(clientId, 'inventory', item.id), cleanDoc(item));
+    }
+
+    // Seed stock exits
+    for (const exit of stockExitsToSeed) {
+      batch.set(clientDoc(clientId, 'stockExits', exit.id), cleanDoc(exit));
     }
 
     batch.set(initDocRef, {
@@ -273,6 +287,57 @@ export function subscribeEmployees(
   );
 }
 
+export function subscribeInventory(
+  clientId: string,
+  onData: (items: InventoryItem[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  if (!db || !clientId) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
+  return onSnapshot(
+    clientCollection(clientId, 'inventory'),
+    (snap) => {
+      const items: InventoryItem[] = [];
+      snap.forEach((docSnap) => {
+        items.push(docSnap.data() as InventoryItem);
+      });
+      onData(items);
+    },
+    (err) => {
+      console.error(`[Firestore] Erro no listener de estoque do cliente ${clientId}:`, err);
+      onError?.(err);
+    }
+  );
+}
+
+export function subscribeStockExits(
+  clientId: string,
+  onData: (exits: StockExitRecord[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  if (!db || !clientId) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
+  return onSnapshot(
+    clientCollection(clientId, 'stockExits'),
+    (snap) => {
+      const exits: StockExitRecord[] = [];
+      snap.forEach((docSnap) => {
+        exits.push(docSnap.data() as StockExitRecord);
+      });
+      exits.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      onData(exits);
+    },
+    (err) => {
+      console.error(`[Firestore] Erro no listener de saídas do estoque do cliente ${clientId}:`, err);
+      onError?.(err);
+    }
+  );
+}
+
 // -----------------------------------------------------------------------------
 // Isolated Document Operations per Client
 // -----------------------------------------------------------------------------
@@ -349,6 +414,28 @@ export async function deleteEmployeeFromFirestore(clientId: string, employeeId: 
   await deleteDoc(clientDoc(clientId, 'employees', employeeId));
 }
 
+// Inventory Operations
+export async function saveInventoryItemToFirestore(clientId: string, item: InventoryItem): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'inventory', item.id), cleanDoc(item), { merge: true });
+}
+
+export async function deleteInventoryItemFromFirestore(clientId: string, itemId: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'inventory', itemId));
+}
+
+// Stock Exits Operations (Saídas)
+export async function saveStockExitToFirestore(clientId: string, exitRecord: StockExitRecord): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'stockExits', exitRecord.id), cleanDoc(exitRecord), { merge: true });
+}
+
+export async function deleteStockExitFromFirestore(clientId: string, exitId: string): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'stockExits', exitId));
+}
+
 // -----------------------------------------------------------------------------
 // Reset & Clear Operations (Operate ONLY on the target client)
 // -----------------------------------------------------------------------------
@@ -358,13 +445,15 @@ export async function resetFirestoreDatabase(clientId: string, isDemo: boolean =
   const batch = writeBatch(db);
 
   // Clear client's existing documents
-  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap] = await Promise.all([
+  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap, inventorySnap, exitsSnap] = await Promise.all([
     getDocs(clientCollection(clientId, 'rooms')),
     getDocs(clientCollection(clientId, 'guests')),
     getDocs(clientCollection(clientId, 'categories')),
     getDocs(clientCollection(clientId, 'ratePlans')),
     getDocs(clientCollection(clientId, 'workplaces')),
     getDocs(clientCollection(clientId, 'employees')),
+    getDocs(clientCollection(clientId, 'inventory')),
+    getDocs(clientCollection(clientId, 'stockExits')),
   ]);
 
   roomsSnap.forEach((d) => batch.delete(d.ref));
@@ -373,11 +462,15 @@ export async function resetFirestoreDatabase(clientId: string, isDemo: boolean =
   ratesSnap.forEach((d) => batch.delete(d.ref));
   workplacesSnap.forEach((d) => batch.delete(d.ref));
   employeesSnap.forEach((d) => batch.delete(d.ref));
+  inventorySnap.forEach((d) => batch.delete(d.ref));
+  exitsSnap.forEach((d) => batch.delete(d.ref));
 
   // Re-seed data for this client
   const roomsToSeed = isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS;
   const guestsToSeed = isDemo ? INITIAL_GUESTS : [];
   const employeesToSeed = isDemo ? INITIAL_EMPLOYEES : [];
+  const inventoryToSeed = isDemo ? INITIAL_INVENTORY_ITEMS : [];
+  const stockExitsToSeed = isDemo ? INITIAL_STOCK_EXITS : [];
 
   for (const r of roomsToSeed) {
     batch.set(clientDoc(clientId, 'rooms', r.id), cleanDoc(r));
@@ -397,6 +490,12 @@ export async function resetFirestoreDatabase(clientId: string, isDemo: boolean =
   for (const e of employeesToSeed) {
     batch.set(clientDoc(clientId, 'employees', e.id), cleanDoc(e));
   }
+  for (const item of inventoryToSeed) {
+    batch.set(clientDoc(clientId, 'inventory', item.id), cleanDoc(item));
+  }
+  for (const exit of stockExitsToSeed) {
+    batch.set(clientDoc(clientId, 'stockExits', exit.id), cleanDoc(exit));
+  }
 
   batch.set(doc(db, 'clients', clientId, '_system', 'init'), {
     initialized: true,
@@ -411,13 +510,15 @@ export async function clearAllFirestoreData(clientId: string): Promise<void> {
   if (!db || !clientId) return;
   const batch = writeBatch(db);
 
-  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap] = await Promise.all([
+  const [roomsSnap, guestsSnap, categoriesSnap, ratesSnap, workplacesSnap, employeesSnap, inventorySnap, exitsSnap] = await Promise.all([
     getDocs(clientCollection(clientId, 'rooms')),
     getDocs(clientCollection(clientId, 'guests')),
     getDocs(clientCollection(clientId, 'categories')),
     getDocs(clientCollection(clientId, 'ratePlans')),
     getDocs(clientCollection(clientId, 'workplaces')),
     getDocs(clientCollection(clientId, 'employees')),
+    getDocs(clientCollection(clientId, 'inventory')),
+    getDocs(clientCollection(clientId, 'stockExits')),
   ]);
 
   roomsSnap.forEach((d) => batch.delete(d.ref));
@@ -426,6 +527,8 @@ export async function clearAllFirestoreData(clientId: string): Promise<void> {
   ratesSnap.forEach((d) => batch.delete(d.ref));
   workplacesSnap.forEach((d) => batch.delete(d.ref));
   employeesSnap.forEach((d) => batch.delete(d.ref));
+  inventorySnap.forEach((d) => batch.delete(d.ref));
+  exitsSnap.forEach((d) => batch.delete(d.ref));
 
   // Retain a base clean accommodation category
   const defaultCat = 'Standard';

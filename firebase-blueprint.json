@@ -117,6 +117,46 @@
       },
       "required": ["id", "name", "role", "workplace", "salary", "hireDate", "status"]
     },
+    "inventory": {
+      "title": "Inventory Items",
+      "description": "Itens do estoque, códigos, marcas e modelos, quantidades, preço da última compra e percentuais de alerta",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "product": { "type": "string" },
+        "brandModel": { "type": "string" },
+        "quantity": { "type": "number" },
+        "targetQuantity": { "type": "number" },
+        "lastPurchasePrice": { "type": "number" },
+        "alertThresholdPercent": { "type": "number" },
+        "unit": { "type": "string" },
+        "category": { "type": "string" },
+        "lastPurchaseDate": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "code", "product", "brandModel", "quantity", "lastPurchasePrice", "alertThresholdPercent"]
+    },
+    "stockExits": {
+      "title": "Stock Exits",
+      "description": "Registro e histórico de saídas de mercadorias e itens do estoque",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itemId": { "type": "string" },
+        "itemCode": { "type": "string" },
+        "productName": { "type": "string" },
+        "brandModel": { "type": "string" },
+        "quantity": { "type": "number" },
+        "destination": { "type": "string" },
+        "responsibleName": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "itemId", "itemCode", "productName", "quantity", "destination", "responsibleName", "date"]
+    },
     "system_config": {
       "title": "System Configuration",
       "description": "Configurações gerais do sistema e autenticação do administrador",

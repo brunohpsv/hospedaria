@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ClientAccount } from '../types';
+import { ClientAccount, SubscriptionPlanType } from '../types';
 import { SUBSCRIPTION_PLANS } from '../lib/authConstants';
 import {
   deleteClientFromFirestore,
@@ -34,6 +34,22 @@ interface AdminPortalModalProps {
   onUpdateClientsList: (updatedList: ClientAccount[]) => void;
   onLoginAsClient: (client: ClientAccount) => void;
 }
+
+const getPlanInfo = (planKey?: string) => {
+  const normalized = (planKey || '').toLowerCase() as SubscriptionPlanType;
+  return (
+    SUBSCRIPTION_PLANS[normalized] ||
+    SUBSCRIPTION_PLANS.profissional || {
+      type: 'profissional' as SubscriptionPlanType,
+      name: 'Profissional',
+      roomLimit: 30,
+      roomLimitText: 'Até 30 quartos',
+      pricePerMonth: 149,
+      priceText: 'R$ 149/mês',
+      description: 'Plano hoteleiro padrão',
+    }
+  );
+};
 
 export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
   isOpen,
@@ -117,13 +133,16 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
   // Toggle Suspend / Activate
   const handleToggleSuspend = (client: ClientAccount) => {
+    if (!client) return;
     const isCurrentlySuspended = client.status === 'suspenso';
     const newStatus = isCurrentlySuspended ? 'ativo' : 'suspenso';
     const actionWord = isCurrentlySuspended ? 'ATIVAR' : 'SUSPENDER';
+    const estName = client.establishmentName || 'Estabelecimento';
+    const respName = client.responsibleName || 'Responsável';
 
     showConfirm({
       title: `${actionWord} CADASTRO`,
-      message: `Deseja realmente ${actionWord} o acesso do estabelecimento:\n\n"${client.establishmentName.toUpperCase()}"\nResponsável: ${client.responsibleName}\n\n${
+      message: `Deseja realmente ${actionWord} o acesso do estabelecimento:\n\n"${estName.toUpperCase()}"\nResponsável: ${respName}\n\n${
         isCurrentlySuspended
           ? 'O cliente voltará a ter acesso normal ao sistema.'
           : 'O cliente NÃO conseguirá fazer login até ser reativado.'
@@ -143,7 +162,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
         try {
           await updateClientStatusInFirestore(client.id, newStatus);
           showAlert(
-            `Cadastro "${client.establishmentName}" foi ${isCurrentlySuspended ? 'ATIVADO' : 'SUSPENSO'} com sucesso.`,
+            `Cadastro "${estName}" foi ${isCurrentlySuspended ? 'ATIVADO' : 'SUSPENSO'} com sucesso.`,
             'STATUS ATUALIZADO'
           );
         } catch (err) {
@@ -156,9 +175,13 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
   // Delete Client Account
   const handleDeleteClient = (client: ClientAccount) => {
+    if (!client) return;
+    const estName = client.establishmentName || 'Estabelecimento';
+    const respName = client.responsibleName || 'Responsável';
+
     showConfirm({
       title: 'EXCLUIR CADASTRO DEFINITIVAMENTE',
-      message: `ATENÇÃO: AÇÃO IRREVERSÍVEL!\n\nDeseja excluir definitivamente o cadastro do cliente:\n\n"${client.establishmentName.toUpperCase()}"\nCNPJ/CPF: ${client.cpfCnpj}\nResponsável: ${client.responsibleName}\nChave: ${client.accessKey}\n\nTodos os dados deste cliente serão removidos da plataforma.`,
+      message: `ATENÇÃO: AÇÃO IRREVERSÍVEL!\n\nDeseja excluir definitivamente o cadastro do cliente:\n\n"${estName.toUpperCase()}"\nCNPJ/CPF: ${client.cpfCnpj || 'NÃO INFORMADO'}\nResponsável: ${respName}\nChave: ${client.accessKey || 'N/A'}\n\nTodos os dados deste cliente serão removidos da plataforma.`,
       type: 'danger',
       confirmText: '[ SIM, EXCLUIR DEFINITIVAMENTE ]',
       cancelText: '[ CANCELAR ]',
@@ -173,7 +196,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
         try {
           await deleteClientFromFirestore(client.id);
-          showAlert(`Cadastro de "${client.establishmentName}" excluído com sucesso!`, 'CADASTRO EXCLUÍDO');
+          showAlert(`Cadastro de "${estName}" excluído com sucesso!`, 'CADASTRO EXCLUÍDO');
         } catch (err) {
           console.error(err);
           showAlert('Erro ao remover no Firebase. Cadastro removido localmente.', 'AVISO');
@@ -184,6 +207,7 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
   // Copy Access Key helper
   const handleCopyAccessKey = (key: string, id: string) => {
+    if (!key) return;
     navigator.clipboard.writeText(key);
     setCopiedKeyId(id);
     setTimeout(() => {
@@ -193,15 +217,18 @@ export const AdminPortalModal: React.FC<AdminPortalModalProps> = ({
 
   // Download TXT Client Dossier (Notepad format)
   const handleDownloadClientTxt = (client: ClientAccount) => {
-    const plan = SUBSCRIPTION_PLANS[client.plan] || SUBSCRIPTION_PLANS.profissional;
+    if (!client) return;
+    const plan = getPlanInfo(client.plan);
     const now = new Date().toLocaleString('pt-BR');
+    const estName = client.establishmentName || 'ESTABELECIMENTO';
+    const respName = client.responsibleName || 'RESPONSÁVEL';
 
     const content = `========================================================================
              FICHA COMPLETA DO CLIENTE / CADASTRO DE ASSINATURA
                    SISTEMA DE GESTÃO HOTELEIRA - BLOCO DE NOTAS
 ========================================================================
 
-ID DO REGISTRO: ${client.id}
+ID DO REGISTRO: ${client.id || 'N/A'}
 DATA DO CADASTRO: ${client.createdAt || 'NÃO REGISTRADA'}
 DATA DA CONSULTA: ${now}
 STATUS DO ACESSO: ${(client.status || 'ativo').toUpperCase()}
@@ -209,29 +236,29 @@ STATUS DO ACESSO: ${(client.status || 'ativo').toUpperCase()}
 ------------------------------------------------------------------------
 1. DADOS DO ESTABELECIMENTO
 ------------------------------------------------------------------------
-NOME FANTASIA / HOTEL: ${client.establishmentName.toUpperCase()}
-CNPJ OU CPF:           ${client.cpfCnpj}
-E-MAIL DE CONTATO:     ${client.email}
-TELEFONE / WHATSAPP:   ${client.phone}
+NOME FANTASIA / HOTEL: ${estName.toUpperCase()}
+CNPJ OU CPF:           ${client.cpfCnpj || 'NÃO INFORMADO'}
+E-MAIL DE CONTATO:     ${client.email || 'NÃO INFORMADO'}
+TELEFONE / WHATSAPP:   ${client.phone || 'NÃO INFORMADO'}
 
 ------------------------------------------------------------------------
 2. DADOS DO RESPONSÁVEL
 ------------------------------------------------------------------------
-NOME DO RESPONSÁVEL:   ${client.responsibleName.toUpperCase()}
-CPF DO RESPONSÁVEL:    ${client.responsibleCpf || 'NÃO INFORMADO'}
+NOME DO RESPONSÁVEL:   ${respName.toUpperCase()}
+CPF DO RESPONSÁVEL:    ${client.responsibleCpf || client.cpfCnpj || 'NÃO INFORMADO'}
 
 ------------------------------------------------------------------------
 3. CREDENCIAIS DE ACESSO
 ------------------------------------------------------------------------
-CHAVE DE ACESSO / SENHA: ${client.accessKey}
+CHAVE DE ACESSO / SENHA: ${client.accessKey || 'N/A'}
 
 ------------------------------------------------------------------------
 4. PLANO CONTRATADO & VALORES
 ------------------------------------------------------------------------
-PLANO:                 ${plan.name.toUpperCase()}
-LIMITE DE ACOMODAÇÕES: ${plan.roomLimitText}
-VALOR MENSAL:          ${plan.priceText}
-DESCRIÇÃO:             ${plan.description}
+PLANO:                 ${(plan.name || 'PADRÃO').toUpperCase()}
+LIMITE DE ACOMODAÇÕES: ${plan.roomLimitText || ''}
+VALOR MENSAL:          ${plan.priceText || ''}
+DESCRIÇÃO:             ${plan.description || ''}
 
 ========================================================================
             DOCUMENTO CONFIDENCIAL - USO INTERNO DO ADMINISTRADOR
@@ -242,7 +269,8 @@ DESCRIÇÃO:             ${plan.description}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `CADASTRO_${client.establishmentName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}_${client.accessKey}.txt`;
+    const safeFileName = estName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    link.download = `CADASTRO_${safeFileName}_${client.accessKey || 'CHAVE'}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -287,13 +315,13 @@ DESCRIÇÃO:             ${plan.description}
 
       const q = searchFilter.toLowerCase();
       return (
-        c.establishmentName.toLowerCase().includes(q) ||
-        c.responsibleName.toLowerCase().includes(q) ||
-        c.cpfCnpj.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.phone.toLowerCase().includes(q) ||
-        c.accessKey.toLowerCase().includes(q) ||
-        (SUBSCRIPTION_PLANS[c.plan]?.name || '').toLowerCase().includes(q)
+        (c.establishmentName || '').toLowerCase().includes(q) ||
+        (c.responsibleName || '').toLowerCase().includes(q) ||
+        (c.cpfCnpj || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.phone || '').toLowerCase().includes(q) ||
+        (c.accessKey || '').toLowerCase().includes(q) ||
+        (getPlanInfo(c.plan)?.name || '').toLowerCase().includes(q)
       );
     });
   }, [clients, searchFilter, statusFilter]);
@@ -304,17 +332,18 @@ DESCRIÇÃO:             ${plan.description}
   const suspendedCount = clients.filter((c) => c.status === 'suspenso').length;
   const estimatedRevenue = clients.reduce((sum, c) => {
     if (c.status === 'suspenso') return sum;
-    const price = SUBSCRIPTION_PLANS[c.plan]?.pricePerMonth || 0;
+    const price = getPlanInfo(c.plan)?.pricePerMonth || 0;
     return sum + price;
   }, 0);
 
   if (!isOpen) return null;
 
   return (
-    <div
-      id="admin-portal-overlay"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 md:p-4 font-mono select-none"
-    >
+    <>
+      <div
+        id="admin-portal-overlay"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 md:p-4 font-mono select-none"
+      >
       <div className="bg-white border-2 border-black w-full max-w-6xl max-h-[92vh] flex flex-col shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] animate-in fade-in zoom-in-95 duration-150">
         {/* Window Title Bar */}
         <div className="bg-black text-white px-3 py-1.5 flex items-center justify-between font-bold text-xs select-none">
@@ -581,7 +610,7 @@ DESCRIÇÃO:             ${plan.description}
                       </tr>
                     ) : (
                       filteredClients.map((client) => {
-                        const planInfo = SUBSCRIPTION_PLANS[client.plan] || SUBSCRIPTION_PLANS.profissional;
+                        const planInfo = getPlanInfo(client.plan);
                         const isSuspended = client.status === 'suspenso';
                         const isCopied = copiedKeyId === client.id;
 
@@ -739,200 +768,201 @@ DESCRIÇÃO:             ${plan.description}
           <span>ACESSO CONFIDENCIAL • GESTÃO DE CHAVES & ASSINATURAS</span>
         </div>
       </div>
+    </div>
 
-      {/* DETAILED CLIENT DOSSIER MODAL */}
-      {selectedClientForDetails && (
-        <div className="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-2 md:p-4 font-mono select-none">
-          <div className="bg-white border-2 border-black w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            {/* Title */}
-            <div className="bg-black text-white px-3 py-1.5 flex items-center justify-between font-bold text-xs">
-              <span>Detalhes_do_Cliente - {selectedClientForDetails.establishmentName}.txt</span>
-              <button
-                type="button"
-                onClick={() => setSelectedClientForDetails(null)}
-                className="text-white hover:bg-red-600 px-2 py-0.5 border border-white cursor-pointer"
-              >
-                [ X ]
-              </button>
-            </div>
+    {/* DETAILED CLIENT DOSSIER MODAL */}
+    {selectedClientForDetails && (
+      <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-2 md:p-4 font-mono select-none">
+        <div className="bg-white border-2 border-black w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          {/* Title */}
+          <div className="bg-black text-white px-3 py-1.5 flex items-center justify-between font-bold text-xs">
+            <span className="truncate mr-2">Detalhes_do_Cliente - {selectedClientForDetails.establishmentName || 'Hotel'}.txt</span>
+            <button
+              type="button"
+              onClick={() => setSelectedClientForDetails(null)}
+              className="text-white hover:bg-red-600 px-2 py-0.5 border border-white cursor-pointer shrink-0"
+            >
+              [ X ]
+            </button>
+          </div>
 
-            {/* Body */}
-            <div className="p-4 overflow-y-auto space-y-4 text-xs">
-              <div className="border border-black p-3 bg-[#FFFFEE] space-y-1">
-                <div className="font-bold text-sm text-black flex items-center justify-between">
-                  <span>{selectedClientForDetails.establishmentName.toUpperCase()}</span>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 border font-bold ${
-                      selectedClientForDetails.status === 'suspenso'
-                        ? 'bg-red-100 text-red-800 border-red-500'
-                        : 'bg-emerald-100 text-emerald-800 border-emerald-500'
-                    }`}
-                  >
-                    STATUS: {(selectedClientForDetails.status || 'ativo').toUpperCase()}
-                  </span>
-                </div>
-                <div className="text-[11px] text-gray-600">
-                  ID do Cliente: <span className="font-bold text-black select-all">{selectedClientForDetails.id}</span>
-                </div>
-              </div>
-
-              {/* Data Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="border border-black p-2.5 bg-white space-y-1">
-                  <div className="text-[10px] text-gray-500 font-bold">DADOS DA EMPRESA / HOTEL</div>
-                  <div>
-                    <span className="text-gray-600">CNPJ / CPF:</span>{' '}
-                    <span className="font-bold">{selectedClientForDetails.cpfCnpj}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">E-mail:</span>{' '}
-                    <span className="font-bold">{selectedClientForDetails.email}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Telefone:</span>{' '}
-                    <span className="font-bold">{selectedClientForDetails.phone}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Data de Entrada:</span>{' '}
-                    <span className="font-bold">{selectedClientForDetails.createdAt || 'N/A'}</span>
-                  </div>
-                </div>
-
-                <div className="border border-black p-2.5 bg-white space-y-1">
-                  <div className="text-[10px] text-gray-500 font-bold">RESPONSÁVEL LEGAL</div>
-                  <div>
-                    <span className="text-gray-600">Nome:</span>{' '}
-                    <span className="font-bold">{selectedClientForDetails.responsibleName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">CPF:</span>{' '}
-                    <span className="font-bold">{selectedClientForDetails.responsibleCpf || selectedClientForDetails.cpfCnpj}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Status Acesso:</span>{' '}
-                    <span className="font-bold uppercase">
-                      {selectedClientForDetails.status || 'ativo'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Access Key & Plan */}
-              <div className="border border-black p-3 bg-gray-50 space-y-2">
-                <div className="text-[10px] text-gray-500 font-bold">CREDENCIAL E PLANO DE ASSINATURA</div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2 border border-black">
-                  <div>
-                    <span className="text-xs text-gray-600 block">SENHA / CHAVE DE ACESSO DO CLIENTE:</span>
-                    <span className="text-base font-bold font-mono text-black bg-[#FFFFCC] px-2 py-0.5 border border-black select-all">
-                      {selectedClientForDetails.accessKey}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyAccessKey(selectedClientForDetails.accessKey, 'detail-modal')}
-                    className="px-2.5 py-1 border border-black bg-white hover:bg-gray-100 text-xs font-bold cursor-pointer flex items-center gap-1"
-                  >
-                    {copiedKeyId === 'detail-modal' ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copiar Chave</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Plan Info Card */}
-                {(() => {
-                  const p = SUBSCRIPTION_PLANS[selectedClientForDetails.plan] || SUBSCRIPTION_PLANS.profissional;
-                  return (
-                    <div className="border border-black bg-white p-2.5 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-black">PLANO {p.name.toUpperCase()}</span>
-                        <span className="font-bold text-black">{p.priceText}</span>
-                      </div>
-                      <div className="text-xs text-gray-700">
-                        Capacidade: <span className="font-bold">{p.roomLimitText}</span>
-                      </div>
-                      <div className="text-[11px] text-gray-600 italic">
-                        {p.description}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Footer with actions */}
-            <div className="p-3 bg-gray-100 border-t border-black flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {/* Download TXT */}
-                <button
-                  type="button"
-                  onClick={() => handleDownloadClientTxt(selectedClientForDetails)}
-                  className="px-3 py-1.5 border border-black bg-white hover:bg-gray-200 font-bold text-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>[ Baixar Ficha TXT ]</span>
-                </button>
-
-                {/* Login as client (support / inspect) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onLoginAsClient(selectedClientForDetails);
-                    setSelectedClientForDetails(null);
-                    onClose();
-                  }}
-                  className="px-3 py-1.5 border border-black bg-[#FFFFCC] hover:bg-black hover:text-white font-bold text-xs cursor-pointer flex items-center gap-1.5"
-                  title="Acessar o painel deste hotel diretamente"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>[ Acessar Como Este Hotel ]</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Suspender / Ativar directly from details */}
-                <button
-                  type="button"
-                  onClick={() => handleToggleSuspend(selectedClientForDetails)}
-                  className={`px-3 py-1.5 border border-black font-bold text-xs cursor-pointer flex items-center gap-1.5 ${
+          {/* Body */}
+          <div className="p-4 overflow-y-auto space-y-4 text-xs">
+            <div className="border border-black p-3 bg-[#FFFFEE] space-y-1">
+              <div className="font-bold text-sm text-black flex items-center justify-between">
+                <span>{(selectedClientForDetails.establishmentName || 'ESTABELECIMENTO').toUpperCase()}</span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 border font-bold ${
                     selectedClientForDetails.status === 'suspenso'
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-amber-100 text-amber-900 hover:bg-amber-200'
+                      ? 'bg-red-100 text-red-800 border-red-500'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-500'
                   }`}
                 >
-                  {selectedClientForDetails.status === 'suspenso' ? (
+                  STATUS: {(selectedClientForDetails.status || 'ativo').toUpperCase()}
+                </span>
+              </div>
+              <div className="text-[11px] text-gray-600">
+                ID do Cliente: <span className="font-bold text-black select-all">{selectedClientForDetails.id || 'N/A'}</span>
+              </div>
+            </div>
+
+            {/* Data Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="border border-black p-2.5 bg-white space-y-1">
+                <div className="text-[10px] text-gray-500 font-bold">DADOS DA EMPRESA / HOTEL</div>
+                <div>
+                  <span className="text-gray-600">CNPJ / CPF:</span>{' '}
+                  <span className="font-bold">{selectedClientForDetails.cpfCnpj || 'Não Informado'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">E-mail:</span>{' '}
+                  <span className="font-bold">{selectedClientForDetails.email || 'Não Informado'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Telefone:</span>{' '}
+                  <span className="font-bold">{selectedClientForDetails.phone || 'Não Informado'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Data de Entrada:</span>{' '}
+                  <span className="font-bold">{selectedClientForDetails.createdAt || 'N/A'}</span>
+                </div>
+              </div>
+
+              <div className="border border-black p-2.5 bg-white space-y-1">
+                <div className="text-[10px] text-gray-500 font-bold">RESPONSÁVEL LEGAL</div>
+                <div>
+                  <span className="text-gray-600">Nome:</span>{' '}
+                  <span className="font-bold">{selectedClientForDetails.responsibleName || 'Não Informado'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">CPF:</span>{' '}
+                  <span className="font-bold">{selectedClientForDetails.responsibleCpf || selectedClientForDetails.cpfCnpj || 'Não Informado'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Status Acesso:</span>{' '}
+                  <span className="font-bold uppercase">
+                    {selectedClientForDetails.status || 'ativo'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Access Key & Plan */}
+            <div className="border border-black p-3 bg-gray-50 space-y-2">
+              <div className="text-[10px] text-gray-500 font-bold">CREDENCIAL E PLANO DE ASSINATURA</div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2 border border-black">
+                <div>
+                  <span className="text-xs text-gray-600 block">SENHA / CHAVE DE ACESSO DO CLIENTE:</span>
+                  <span className="text-base font-bold font-mono text-black bg-[#FFFFCC] px-2 py-0.5 border border-black select-all">
+                    {selectedClientForDetails.accessKey || 'N/A'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAccessKey(selectedClientForDetails.accessKey || '', 'detail-modal')}
+                  className="px-2.5 py-1 border border-black bg-white hover:bg-gray-100 text-xs font-bold cursor-pointer flex items-center gap-1"
+                >
+                  {copiedKeyId === 'detail-modal' ? (
                     <>
-                      <Unlock className="w-3.5 h-3.5" />
-                      <span>[ Reativar Conta ]</span>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Copiado!</span>
                     </>
                   ) : (
                     <>
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>[ Suspender Conta ]</span>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copiar Chave</span>
                     </>
                   )}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedClientForDetails(null)}
-                  className="px-4 py-1.5 border border-black bg-white hover:bg-gray-200 font-bold text-xs cursor-pointer"
-                >
-                  [ Fechar ]
-                </button>
               </div>
+
+              {/* Plan Info Card */}
+              {(() => {
+                const p = getPlanInfo(selectedClientForDetails.plan);
+                return (
+                  <div className="border border-black bg-white p-2.5 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-black">PLANO {(p?.name || 'PADRÃO').toUpperCase()}</span>
+                      <span className="font-bold text-black">{p?.priceText || ''}</span>
+                    </div>
+                    <div className="text-xs text-gray-700">
+                      Capacidade: <span className="font-bold">{p?.roomLimitText || ''}</span>
+                    </div>
+                    <div className="text-[11px] text-gray-600 italic">
+                      {p?.description || ''}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Footer with actions */}
+          <div className="p-3 bg-gray-100 border-t border-black flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {/* Download TXT */}
+              <button
+                type="button"
+                onClick={() => handleDownloadClientTxt(selectedClientForDetails)}
+                className="px-3 py-1.5 border border-black bg-white hover:bg-gray-200 font-bold text-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>[ Baixar Ficha TXT ]</span>
+              </button>
+
+              {/* Login as client (support / inspect) */}
+              <button
+                type="button"
+                onClick={() => {
+                  onLoginAsClient(selectedClientForDetails);
+                  setSelectedClientForDetails(null);
+                  onClose();
+                }}
+                className="px-3 py-1.5 border border-black bg-[#FFFFCC] hover:bg-black hover:text-white font-bold text-xs cursor-pointer flex items-center gap-1.5"
+                title="Acessar o painel deste hotel diretamente"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>[ Acessar Como Este Hotel ]</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Suspender / Ativar directly from details */}
+              <button
+                type="button"
+                onClick={() => handleToggleSuspend(selectedClientForDetails)}
+                className={`px-3 py-1.5 border border-black font-bold text-xs cursor-pointer flex items-center gap-1.5 ${
+                  selectedClientForDetails.status === 'suspenso'
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'bg-amber-100 text-amber-900 hover:bg-amber-200'
+                }`}
+              >
+                {selectedClientForDetails.status === 'suspenso' ? (
+                  <>
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>[ Reativar Conta ]</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>[ Suspender Conta ]</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedClientForDetails(null)}
+                className="px-4 py-1.5 border border-black bg-white hover:bg-gray-200 font-bold text-xs cursor-pointer"
+              >
+                [ Fechar ]
+              </button>
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </>
+);
 };

@@ -44,6 +44,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     valores: 'VALORES & TARIFÁRIO',
     calendario: 'CALENDÁRIO',
     funcionarios: 'FUNCIONÁRIOS & EQUIPE',
+    estoque: 'ESTOQUE & ALMOXARIFADO',
     empresa: 'DADOS DO ESTABELECIMENTO',
   };
 

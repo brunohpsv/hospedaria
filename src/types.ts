@@ -49,7 +49,7 @@ export interface RatePlan {
   minNights: number;
 }
 
-export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario' | 'funcionarios' | 'empresa';
+export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario' | 'funcionarios' | 'estoque' | 'empresa';
 
 export type SubscriptionPlanType = 'basico' | 'profissional' | 'premium' | 'king';
 
@@ -96,5 +96,35 @@ export interface Employee {
 export interface Workplace {
   id: string;
   name: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  code: string;
+  product: string;
+  brandModel: string;
+  quantity: number;
+  targetQuantity: number;
+  lastPurchasePrice: number;
+  alertThresholdPercent: number;
+  unit?: string;
+  category?: string;
+  lastPurchaseDate?: string;
+  notes?: string;
+}
+
+export interface StockExitRecord {
+  id: string;
+  itemId: string;
+  itemCode: string;
+  productName: string;
+  brandModel: string;
+  quantity: number;
+  destination: string;
+  responsibleName: string;
+  date: string;
+  time: string;
+  notes?: string;
+  createdAt: string;
 }
 

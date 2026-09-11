@@ -15,6 +15,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen = true, o
     { key: 'F4 ou Alt+3', desc: 'Ir para a tela de Tabela de Valores (Tarifário)' },
     { key: 'F5 ou Alt+4', desc: 'Ir para a tela de Calendário de Reservas (Grade)' },
     { key: 'F6 ou Alt+5', desc: 'Ir para a tela de Gestão de Funcionários & Equipe' },
+    { key: 'F9 ou Alt+7', desc: 'Ir para a tela de Controle de Estoque & Saídas de Almoxarifado' },
     { key: 'F8 ou Alt+6', desc: 'Ir para a tela de Dados do Estabelecimento & Empresa' },
     { key: 'Ctrl + N', desc: 'Iniciar novo cadastro de hóspede / formulário em branco' },
     { key: 'Ctrl + S', desc: 'Salvar hóspede atual / persistir dados no sistema local' },

@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ActiveTab, Room, GuestReservation, RatePlan, RoomStatus, ClientAccount, Employee } from './types';
+import {
+  ActiveTab,
+  Room,
+  GuestReservation,
+  RatePlan,
+  RoomStatus,
+  ClientAccount,
+  Employee,
+  InventoryItem,
+  StockExitRecord,
+} from './types';
 import {
   INITIAL_ROOMS,
   INITIAL_GUESTS,
@@ -7,6 +17,8 @@ import {
   INITIAL_CATEGORIES,
   INITIAL_WORKPLACES,
   INITIAL_EMPLOYEES,
+  INITIAL_INVENTORY_ITEMS,
+  INITIAL_STOCK_EXITS,
   STARTER_CLEAN_ROOMS,
 } from './mockData';
 import { WindowHeader } from './components/WindowHeader';
@@ -15,6 +27,7 @@ import { RoomControl } from './components/RoomControl';
 import { RatePlans } from './components/RatePlans';
 import { BookingCalendar } from './components/BookingCalendar';
 import { StaffManagement } from './components/StaffManagement';
+import { InventoryManagement } from './components/InventoryManagement';
 import { EstablishmentSettings } from './components/EstablishmentSettings';
 import { TxtVoucherModal } from './components/TxtVoucherModal';
 import { ShortcutsModal } from './components/ShortcutsModal';
@@ -30,6 +43,8 @@ import {
   subscribeRatePlans,
   subscribeWorkplaces,
   subscribeEmployees,
+  subscribeInventory,
+  subscribeStockExits,
   saveRoomToFirestore,
   deleteRoomFromFirestore,
   saveGuestToFirestore,
@@ -42,6 +57,10 @@ import {
   deleteWorkplaceFromFirestore,
   saveEmployeeToFirestore,
   deleteEmployeeFromFirestore,
+  saveInventoryItemToFirestore,
+  deleteInventoryItemFromFirestore,
+  saveStockExitToFirestore,
+  deleteStockExitFromFirestore,
   saveClientToFirestore,
   resetFirestoreDatabase,
   clearAllFirestoreData,
@@ -79,6 +98,8 @@ export default function App() {
   const [ratePlans, setRatePlans] = useState<RatePlan[]>(INITIAL_RATE_PLANS);
   const [workplaces, setWorkplaces] = useState<string[]>(INITIAL_WORKPLACES);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [stockExits, setStockExits] = useState<StockExitRecord[]>([]);
 
   const { showAlert } = useDialog();
 
@@ -127,8 +148,9 @@ export default function App() {
     try {
       localStorage.setItem(STORAGE_KEYS.CURRENT_CLIENT, JSON.stringify(client));
     } catch {}
-    const planName = SUBSCRIPTION_PLANS[client.plan]?.name || 'Padrão';
-    showToast(`BEM-VINDO, ${client.responsibleName.toUpperCase()}! [PLANO: ${planName.toUpperCase()}]`);
+    const planName = (client.plan && SUBSCRIPTION_PLANS[client.plan]?.name) || 'Profissional';
+    const greetingName = (client.responsibleName || client.establishmentName || 'Usuário').toUpperCase();
+    showToast(`BEM-VINDO, ${greetingName}! [PLANO: ${planName.toUpperCase()}]`);
   };
 
   const handleLogout = () => {
@@ -187,6 +209,12 @@ export default function App() {
 
       const savedEmps = localStorage.getItem(getTenantKey(clientId, 'EMPLOYEES'));
       setEmployees(savedEmps ? JSON.parse(savedEmps) : (isDemo ? INITIAL_EMPLOYEES : []));
+
+      const savedInv = localStorage.getItem(getTenantKey(clientId, 'INVENTORY'));
+      setInventoryItems(savedInv ? JSON.parse(savedInv) : (isDemo ? INITIAL_INVENTORY_ITEMS : []));
+
+      const savedExits = localStorage.getItem(getTenantKey(clientId, 'STOCK_EXITS'));
+      setStockExits(savedExits ? JSON.parse(savedExits) : (isDemo ? INITIAL_STOCK_EXITS : []));
     } catch (err) {
       console.error('Erro ao ler cache local do cliente:', err);
     }
@@ -198,6 +226,8 @@ export default function App() {
     let unsubRatePlans: () => void = () => {};
     let unsubWorkplaces: () => void = () => {};
     let unsubEmployees: () => void = () => {};
+    let unsubInventory: () => void = () => {};
+    let unsubStockExits: () => void = () => {};
 
     const initTenantCloud = async () => {
       try {
@@ -292,6 +322,36 @@ export default function App() {
             setIsCloudSynced(false);
           }
         );
+
+        unsubInventory = subscribeInventory(
+          clientId,
+          (fireInv) => {
+            setInventoryItems(fireInv);
+            try {
+              localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(fireInv));
+            } catch {}
+            setIsCloudSynced(true);
+          },
+          (err) => {
+            console.error(`Erro inventory sync (${clientId}):`, err);
+            setIsCloudSynced(false);
+          }
+        );
+
+        unsubStockExits = subscribeStockExits(
+          clientId,
+          (fireExits) => {
+            setStockExits(fireExits);
+            try {
+              localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify(fireExits));
+            } catch {}
+            setIsCloudSynced(true);
+          },
+          (err) => {
+            console.error(`Erro stockExits sync (${clientId}):`, err);
+            setIsCloudSynced(false);
+          }
+        );
       } catch (err) {
         console.error('Falha ao inicializar dados do cliente no Firebase:', err);
         setIsCloudSynced(false);
@@ -307,6 +367,8 @@ export default function App() {
       unsubRatePlans();
       unsubWorkplaces();
       unsubEmployees();
+      unsubInventory();
+      unsubStockExits();
     };
   }, [currentClient?.id]);
 
@@ -331,6 +393,9 @@ export default function App() {
       } else if (e.key === 'F6' || (e.altKey && e.key === '5')) {
         e.preventDefault();
         setActiveTab('funcionarios');
+      } else if (e.key === 'F9' || (e.altKey && e.key === '7')) {
+        e.preventDefault();
+        setActiveTab('estoque');
       } else if (e.key === 'F8' || (e.altKey && e.key === '6')) {
         e.preventDefault();
         setActiveTab('empresa');
@@ -919,6 +984,138 @@ export default function App() {
     }
   };
 
+  // Handler: Save / Update Inventory Item (Strictly scoped to current client)
+  const handleSaveInventoryItem = async (item: InventoryItem) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    setInventoryItems((prev) => {
+      const exists = prev.some((i) => i.id === item.id);
+      const updated = exists ? prev.map((i) => (i.id === item.id ? item : i)) : [item, ...prev];
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await saveInventoryItemToFirestore(clientId, item);
+      showToast(`PRODUTO "${item.product}" SALVO NO FIREBASE!`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO SALVAR PRODUTO NO FIREBASE!');
+    }
+  };
+
+  // Handler: Delete Inventory Item (Strictly scoped to current client)
+  const handleDeleteInventoryItem = async (itemId: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    const item = inventoryItems.find((i) => i.id === itemId);
+    setInventoryItems((prev) => {
+      const updated = prev.filter((i) => i.id !== itemId);
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await deleteInventoryItemFromFirestore(clientId, itemId);
+      showToast(`PRODUTO "${item?.product || itemId}" EXCLUÍDO!`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO EXCLUIR PRODUTO NO FIREBASE!');
+    }
+  };
+
+  // Handler: Register Stock Exit (Strictly scoped to current client)
+  const handleRegisterStockExit = async (exitRecord: StockExitRecord, updatedItemQuantity: number) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    // 1. Update stock exits list
+    setStockExits((prev) => {
+      const updated = [exitRecord, ...prev];
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 2. Update item quantity in inventory list
+    let updatedItem: InventoryItem | undefined;
+    setInventoryItems((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id === exitRecord.itemId) {
+          updatedItem = { ...item, quantity: updatedItemQuantity };
+          return updatedItem;
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 3. Persist to Firestore
+    try {
+      await saveStockExitToFirestore(clientId, exitRecord);
+      if (updatedItem) {
+        await saveInventoryItemToFirestore(clientId, updatedItem);
+      }
+      showToast(`SAÍDA DE ${exitRecord.quantity} UN REGISTRADA NO FIREBASE!`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO PERSISTIR SAÍDA NO FIREBASE!');
+    }
+  };
+
+  // Handler: Cancel / Revert Stock Exit (Strictly scoped to current client)
+  const handleCancelStockExit = async (exitId: string, itemId: string, returnQuantity: number) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    // 1. Remove from stock exits
+    setStockExits((prev) => {
+      const updated = prev.filter((e) => e.id !== exitId);
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 2. Return quantity to item
+    let updatedItem: InventoryItem | undefined;
+    setInventoryItems((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id === itemId) {
+          updatedItem = { ...item, quantity: item.quantity + returnQuantity };
+          return updatedItem;
+        }
+        return item;
+      });
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 3. Persist deletion & update to Firestore
+    try {
+      await deleteStockExitFromFirestore(clientId, exitId);
+      if (updatedItem) {
+        await saveInventoryItemToFirestore(clientId, updatedItem);
+      }
+      showToast(`SAÍDA ESTORNADA! +${returnQuantity} UN DEVOLVIDAS AO ESTOQUE`);
+    } catch (err) {
+      console.error(err);
+      showToast('ERRO AO ESTORNAR NO FIREBASE!');
+    }
+  };
+
   // Reset to default mock data (Strictly scoped to active client)
   const handleResetData = async () => {
     if (!currentClient) return;
@@ -930,6 +1127,8 @@ export default function App() {
       const targetRooms = isDemo ? INITIAL_ROOMS : STARTER_CLEAN_ROOMS;
       const targetGuests = isDemo ? INITIAL_GUESTS : [];
       const targetEmps = isDemo ? INITIAL_EMPLOYEES : [];
+      const targetInv = isDemo ? INITIAL_INVENTORY_ITEMS : [];
+      const targetExits = isDemo ? INITIAL_STOCK_EXITS : [];
 
       setRooms(targetRooms);
       setGuests(targetGuests);
@@ -937,6 +1136,8 @@ export default function App() {
       setCategories(INITIAL_CATEGORIES);
       setWorkplaces(INITIAL_WORKPLACES);
       setEmployees(targetEmps);
+      setInventoryItems(targetInv);
+      setStockExits(targetExits);
 
       localStorage.setItem(getTenantKey(clientId, 'ROOMS'), JSON.stringify(targetRooms));
       localStorage.setItem(getTenantKey(clientId, 'GUESTS'), JSON.stringify(targetGuests));
@@ -944,6 +1145,8 @@ export default function App() {
       localStorage.setItem(getTenantKey(clientId, 'CATEGORIES'), JSON.stringify(INITIAL_CATEGORIES));
       localStorage.setItem(getTenantKey(clientId, 'WORKPLACES'), JSON.stringify(INITIAL_WORKPLACES));
       localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify(targetEmps));
+      localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(targetInv));
+      localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify(targetExits));
 
       showToast('DADOS PADRÃO RESTAURADOS NO FIREBASE!');
     } catch (err) {
@@ -962,6 +1165,8 @@ export default function App() {
       setRooms([]);
       setGuests([]);
       setEmployees([]);
+      setInventoryItems([]);
+      setStockExits([]);
       setWorkplaces(['Recepção', 'Cozinha', 'Governança', 'Manutenção']);
       const standardRatePlan: RatePlan = {
         id: 'rate-standard',
@@ -985,6 +1190,8 @@ export default function App() {
         JSON.stringify(['Recepção', 'Cozinha', 'Governança', 'Manutenção'])
       );
       localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify([]));
+      localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify([]));
+      localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify([]));
 
       showToast('TODAS AS INFORMAÇÕES FORAM ZERADAS NO FIREBASE!');
     } catch (err) {
@@ -1096,6 +1303,21 @@ export default function App() {
             onDeleteWorkplace={handleDeleteWorkplace}
             searchQuery={searchQuery}
             establishmentName={currentClient?.establishmentName}
+          />
+        )}
+
+        {activeTab === 'estoque' && (
+          <InventoryManagement
+            items={inventoryItems}
+            stockExits={stockExits}
+            employees={employees}
+            rooms={rooms}
+            establishmentName={currentClient?.establishmentName}
+            onSaveItem={handleSaveInventoryItem}
+            onDeleteItem={handleDeleteInventoryItem}
+            onRegisterExit={handleRegisterStockExit}
+            onCancelExit={handleCancelStockExit}
+            searchQuery={searchQuery}
           />
         )}
 
