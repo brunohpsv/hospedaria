@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Room, RoomStatus } from '../types';
 import { useDialog } from '../lib/dialogContext';
+import { formatCurrency, formatNumber2Decimals } from '../lib/formatters';
 
 interface RoomControlProps {
   rooms: Room[];
@@ -358,11 +359,15 @@ export const RoomControl: React.FC<RoomControlProps> = ({
               <input
                 id="new-room-rate"
                 type="number"
+                step="0.01"
                 required
                 value={newRate}
                 onChange={(e) => setNewRate(Number(e.target.value))}
                 className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs"
               />
+              <span className="text-[9px] text-gray-500 block">
+                {formatCurrency(newRate)}
+              </span>
             </div>
 
             <div>
@@ -552,7 +557,7 @@ export const RoomControl: React.FC<RoomControlProps> = ({
                           className="cursor-pointer hover:bg-[#FFFFCC] px-1"
                           title="Clique para editar valor"
                         >
-                          {r.dailyRate.toFixed(2)}
+                          {formatNumber2Decimals(r.dailyRate)}
                         </div>
                       )}
                     </td>

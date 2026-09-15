@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ClientAccount, SubscriptionPlanType, Room, Employee, GuestReservation } from '../types';
 import { SUBSCRIPTION_PLANS, validateAccessKey } from '../lib/authConstants';
 import { useDialog } from '../lib/dialogContext';
+import { formatCurrency } from '../lib/formatters';
 
 interface EstablishmentSettingsProps {
   currentClient: ClientAccount;
@@ -139,9 +140,9 @@ QUARTOS EM USO     : ${rooms.length} de ${planInfo?.roomLimit === 9999 ? 'Ilimit
 [ RECURSOS HUMANOS ]
 TOTAL DE FUNCIONÁRIOS CADASTRADOS: ${employees.length}
 FUNCIONÁRIOS ATIVOS               : ${employees.filter((e) => e.status === 'ativo').length}
-FOLHA SALARIAL ATUAL (R$)         : R$ ${employees
-      .reduce((acc, curr) => acc + curr.salary, 0)
-      .toFixed(2)}
+FOLHA SALARIAL ATUAL              : ${formatCurrency(
+  employees.reduce((acc, curr) => acc + curr.salary, 0)
+)}
 
 ----------------------------------------------------------------------
 CHAVE DE ACESSO ATIVA: ${accessKey}

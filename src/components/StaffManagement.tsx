@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Employee, EmployeeStatus } from '../types';
 import { useDialog } from '../lib/dialogContext';
+import { formatCurrency } from '../lib/formatters';
 
 interface StaffManagementProps {
   employees: Employee[];
@@ -162,7 +163,7 @@ export const StaffManagement: React.FC<StaffManagementProps> = ({
         `• Nome: ${emp.name}\n` +
         `• Cargo: ${emp.role}\n` +
         `• Local: ${emp.workplace}\n` +
-        `• Salário: R$ ${emp.salary.toFixed(2)}\n\n` +
+        `• Salário: ${formatCurrency(emp.salary)}\n\n` +
         `Esta operação não pode ser desfeita.`,
       type: 'danger',
       confirmText: '[ Sim, Excluir Funcionário ]',
@@ -320,7 +321,7 @@ FOLHA SALARIAL MENSAL: R$ ${totalPayroll.toLocaleString('pt-BR', { minimumFracti
       const pName = emp.name.padEnd(29).substring(0, 29);
       const pRole = emp.role.padEnd(23).substring(0, 23);
       const pWork = emp.workplace.padEnd(14).substring(0, 14);
-      const pSal = `R$ ${emp.salary.toFixed(2)}`.padEnd(13).substring(0, 13);
+      const pSal = formatCurrency(emp.salary).padEnd(14).substring(0, 14);
       const pDate = emp.hireDate.padEnd(11).substring(0, 11);
       const pStat = emp.status.toUpperCase();
       text += `${pName} ${pRole} ${pWork} ${pSal} ${pDate} ${pStat}\n`;
@@ -334,7 +335,7 @@ FOLHA SALARIAL MENSAL: R$ ${totalPayroll.toLocaleString('pt-BR', { minimumFracti
       const subtotal = employees
         .filter((e) => e.workplace === wp)
         .reduce((sum, e) => sum + e.salary, 0);
-      text += `• ${wp.padEnd(25)}: ${count.toString().padStart(2)} colaborador(es) - Total R$ ${subtotal.toFixed(2)}\n`;
+      text += `• ${wp.padEnd(25)}: ${count.toString().padStart(2)} colaborador(es) - Total ${formatCurrency(subtotal)}\n`;
     });
 
     text += `\n================================================================================\n`;
@@ -769,12 +770,15 @@ FOLHA SALARIAL MENSAL: R$ ${totalPayroll.toLocaleString('pt-BR', { minimumFracti
                   id="staff-salary"
                   type="number"
                   min="0"
-                  step="50"
+                  step="0.01"
                   required
                   value={salary}
                   onChange={(e) => setSalary(Number(e.target.value))}
                   className="w-full border border-black px-2 h-7 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs font-bold"
                 />
+                <span className="text-[10px] text-gray-600 block mt-0.5">
+                  {formatCurrency(salary)}
+                </span>
               </div>
 
               <div>

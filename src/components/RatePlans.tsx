@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { RatePlan, RoomType } from '../types';
+import { formatCurrency } from '../lib/formatters';
 
 interface RatePlansProps {
   ratePlans: RatePlan[];
@@ -98,12 +99,12 @@ Temporada:        ${seasonLabel}
 Check-in:         ${simCheckIn}
 Check-out:        ${simCheckOut}
 Total de Diárias: ${nights} noites
-Valor da Diária:  R$ ${baseNightRate.toFixed(2)}
-Subtotal Diárias: R$ ${baseSubtotal.toFixed(2)}
-Hóspedes Extras:  ${simExtraGuests} (+ R$ ${extraPaxTotal.toFixed(2)})
-Desconto:         R$ ${Number(simDiscount || 0).toFixed(2)}
+Valor da Diária:  ${formatCurrency(baseNightRate)}
+Subtotal Diárias: ${formatCurrency(baseSubtotal)}
+Hóspedes Extras:  ${simExtraGuests} (+ ${formatCurrency(extraPaxTotal)})
+Desconto:         ${formatCurrency(simDiscount)}
 ------------------------------------------------------------
-VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
+VALOR TOTAL:      ${formatCurrency(simTotal)}
 ============================================================`;
 
     try {
@@ -349,19 +350,19 @@ VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
               <div className="text-xs space-y-0.5">
                 <div>
                   Estadia: <strong>{nights} noite(s)</strong> | Diária:{' '}
-                  <strong>R$ {baseNightRate.toFixed(2)}</strong>
+                  <strong>{formatCurrency(baseNightRate)}</strong>
                 </div>
                 <div>
-                  Subtotal Diárias: <strong>R$ {baseSubtotal.toFixed(2)}</strong>
+                  Subtotal Diárias: <strong>{formatCurrency(baseSubtotal)}</strong>
                 </div>
                 {simExtraGuests > 0 && (
                   <div className="text-[10px] text-gray-700">
-                    + {simExtraGuests} hóspede(s) adicional(is) = R$ {extraPaxTotal.toFixed(2)}
+                    + {simExtraGuests} hóspede(s) adicional(is) = {formatCurrency(extraPaxTotal)}
                   </div>
                 )}
                 {simDiscount > 0 && (
                   <div className="text-[10px] text-gray-700">
-                    - Desconto = R$ {Number(simDiscount).toFixed(2)}
+                    - Desconto = {formatCurrency(simDiscount)}
                   </div>
                 )}
               </div>
@@ -370,7 +371,7 @@ VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
                 <div>
                   <span className="text-[9px] text-gray-600 block font-bold">TOTAL ESTIMADO</span>
                   <span className="text-sm font-bold bg-white border border-black px-2 py-0.5 block">
-                    R$ {simTotal.toFixed(2)}
+                    {formatCurrency(simTotal)}
                   </span>
                 </div>
 

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GuestReservation, Room } from '../types';
 import { useDialog } from '../lib/dialogContext';
+import { formatCurrency, formatNumber2Decimals } from '../lib/formatters';
 
 interface GuestRegistrationProps {
   guests: GuestReservation[];
@@ -44,6 +45,13 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
 
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [formFeedback, setFormFeedback] = useState<string | null>(null);
+
+  // Modal: Quartos Disponíveis por Período e PAX
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
+  const [availCheckIn, setAvailCheckIn] = useState('');
+  const [availCheckOut, setAvailCheckOut] = useState('');
+  const [availPax, setAvailPax] = useState(2);
+  const [availCategory, setAvailCategory] = useState('TODAS');
 
   const { showAlert, showConfirm } = useDialog();
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +148,114 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
   const discountValue = (subtotal * discountPercent) / 100;
   const estimatedTotal = Math.max(0, subtotal - discountValue);
 
+  // Open availability modal initialized with current form parameters
+  const handleOpenAvailabilityModal = () => {
+    setAvailCheckIn(checkIn || new Date().toISOString().split('T')[0]);
+    setAvailCheckOut(checkOut || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    setAvailPax(numGuests || 2);
+    setAvailCategory('TODAS');
+    setIsAvailabilityModalOpen(true);
+  };
+
+  // Distinct room categories
+  const categories = useMemo(() => {
+    return Array.from(new Set(rooms.map((r) => r.type))).filter(Boolean);
+  }, [rooms]);
+
+  // Calculate availability for searched period & PAX
+  const availabilityResults = useMemo(() => {
+    if (!availCheckIn || !availCheckOut) {
+      return {
+        available: [],
+        unavailable: [],
+        nights: 1,
+        errorMessage: 'Informe as datas de Check-in e Check-out.',
+      };
+    }
+
+    if (availCheckOut <= availCheckIn) {
+      return {
+        available: [],
+        unavailable: [],
+        nights: 1,
+        errorMessage: 'A data de Check-out deve ser posterior à data de Check-in.',
+      };
+    }
+
+    const start = new Date(availCheckIn + 'T00:00:00');
+    const end = new Date(availCheckOut + 'T00:00:00');
+    const diffTime = end.getTime() - start.getTime();
+    const qNights = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+
+    const available: { room: Room; total: number }[] = [];
+    const unavailable: { room: Room; reason: string }[] = [];
+
+    rooms.forEach((room) => {
+      // Category filter
+      if (availCategory !== 'TODAS' && room.type.toLowerCase() !== availCategory.toLowerCase()) {
+        return;
+      }
+
+      // Check Maintenance
+      if (room.status === 'manutenção') {
+        unavailable.push({ room, reason: 'Quarto interditado para manutenção' });
+        return;
+      }
+
+      // Check Capacity
+      if (room.capacity && room.capacity < availPax) {
+        unavailable.push({
+          room,
+          reason: `Capacidade máxima: ${room.capacity} pessoa(s) (requerido: ${availPax})`,
+        });
+        return;
+      }
+
+      // Check overlapping reservations with active guests (excluding self if editing)
+      const conflict = guests.find((g) => {
+        if (g.id === id) return false;
+        if (g.roomNumber !== room.number) return false;
+        if (g.status === 'Cancelada' || g.status === 'Check-out') return false;
+
+        // Check date overlap:
+        // [g.checkIn, g.checkOut] overlaps with [availCheckIn, availCheckOut]
+        // overlap occurs if NOT (g.checkOut <= availCheckIn || g.checkIn >= availCheckOut)
+        return !(g.checkOut <= availCheckIn || g.checkIn >= availCheckOut);
+      });
+
+      if (conflict) {
+        unavailable.push({
+          room,
+          reason: `Ocupado/Reservado por "${conflict.name}" (${conflict.checkIn.slice(5)} a ${conflict.checkOut.slice(5)})`,
+        });
+        return;
+      }
+
+      // If room passed all filters, it is available!
+      available.push({
+        room,
+        total: qNights * room.dailyRate,
+      });
+    });
+
+    return {
+      available,
+      unavailable,
+      nights: qNights,
+      errorMessage: null,
+    };
+  }, [rooms, guests, availCheckIn, availCheckOut, availPax, availCategory, id]);
+
+  const handleSelectAvailableRoom = (room: Room) => {
+    setRoomNumber(room.number);
+    setDailyRate(room.dailyRate);
+    setCheckIn(availCheckIn);
+    setCheckOut(availCheckOut);
+    setNumGuests(availPax);
+    setIsAvailabilityModalOpen(false);
+    setFormFeedback(`[QUARTO ${room.number} SELECIONADO: ${availCheckIn.slice(5)} a ${availCheckOut.slice(5)}]`);
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!name.trim()) {
@@ -220,6 +336,14 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={handleOpenAvailabilityModal}
+            className="px-2.5 py-0.5 border border-black bg-[#FFFFCC] hover:bg-black hover:text-white cursor-pointer text-[11px] font-bold transition-colors shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+            title="Consultar quartos disponíveis por período e quantidade de hóspedes"
+          >
+            🏨 [ QUARTOS DISPONÍVEIS ]
+          </button>
           {formFeedback && (
             <span className="bg-gray-100 text-gray-900 border border-black px-2 py-0.5 text-[10px] font-bold">
               {formFeedback}
@@ -333,9 +457,19 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
             {/* Quarto & PAX */}
             <div className="grid grid-cols-3 gap-2 border-t border-black pt-2">
               <div className="col-span-2">
-                <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-room">
-                  QUARTO / UNIDADE (OPCIONAL):
-                </label>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="font-bold text-[10px]" htmlFor="guest-room">
+                    QUARTO / UNIDADE:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleOpenAvailabilityModal}
+                    className="text-[9px] font-bold text-blue-800 hover:text-black hover:underline cursor-pointer"
+                    title="Verificar quais quartos estão livres para as datas e quantidade de hóspedes"
+                  >
+                    [🔍 Ver Disponíveis]
+                  </button>
+                </div>
                 <select
                   id="guest-room"
                   value={roomNumber}
@@ -352,7 +486,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
                         : `[${r.status.toUpperCase()}]`;
                     return (
                       <option key={r.id} value={r.number}>
-                        Quarto {r.number} - {r.type} ({statusTag}) - R$ {r.dailyRate}
+                        Quarto {r.number} - {r.type} ({statusTag}) - {formatCurrency(r.dailyRate)}
                       </option>
                     );
                   })}
@@ -415,10 +549,14 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
                 <input
                   id="guest-rate"
                   type="number"
+                  step="0.01"
                   value={dailyRate}
                   onChange={(e) => setDailyRate(Number(e.target.value))}
                   className="w-full border border-black px-2 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs font-bold"
                 />
+                <span className="text-[9px] text-gray-500 block">
+                  {formatCurrency(dailyRate)}
+                </span>
               </div>
 
               <div>
@@ -483,7 +621,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
 
               <div className="text-right">
                 <span className="text-[10px] block">
-                  {nights} diária(s) × R$ {dailyRate.toFixed(2)}
+                  {nights} diária(s) × {formatCurrency(dailyRate)}
                   {discountPercent > 0 && (
                     <span className="text-red-700 font-bold ml-1">
                       (-{discountPercent}%)
@@ -491,7 +629,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
                   )}
                 </span>
                 <span className="text-xs font-bold block bg-white border border-black px-1.5 py-0.5 mt-0.5 text-center">
-                  TOTAL: R$ {estimatedTotal.toFixed(2)}
+                  TOTAL: {formatCurrency(estimatedTotal)}
                 </span>
               </div>
             </div>
@@ -623,7 +761,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
                           {g.checkIn.slice(5)} a {g.checkOut.slice(5)}
                         </td>
                         <td className="py-1 text-right font-bold whitespace-nowrap">
-                          {g.totalAmount.toFixed(2)}
+                          {formatNumber2Decimals(g.totalAmount)}
                         </td>
                         <td
                           className="py-1 text-center whitespace-nowrap"
@@ -684,6 +822,211 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal: Consulta de Quartos Disponíveis por Período e PAX */}
+      {isAvailabilityModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 font-mono">
+          <div className="bg-[#FFFFCC] border-2 border-black max-w-2xl w-full p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Title Bar */}
+            <div className="flex items-center justify-between border-b-2 border-black pb-2 mb-2 bg-black text-white px-2 py-1 -mt-1 -mx-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold tracking-wider">
+                  🏨 CONSULTA DE QUARTOS DISPONÍVEIS
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAvailabilityModalOpen(false)}
+                className="text-white hover:text-red-300 font-bold text-xs cursor-pointer px-1"
+                title="Fechar (ESC)"
+              >
+                [ ✕ ]
+              </button>
+            </div>
+
+            {/* Filter Controls */}
+            <div className="border border-black p-2 bg-white mb-2 shrink-0">
+              <div className="text-[10px] font-bold text-gray-700 uppercase mb-1">
+                PARÂMETROS DE BUSCA NO CALENDÁRIO:
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">
+                    DATA CHECK-IN:*
+                  </label>
+                  <input
+                    type="date"
+                    value={availCheckIn}
+                    onChange={(e) => setAvailCheckIn(e.target.value)}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">
+                    DATA CHECK-OUT:*
+                  </label>
+                  <input
+                    type="date"
+                    value={availCheckOut}
+                    onChange={(e) => setAvailCheckOut(e.target.value)}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">
+                    QTD. PESSOAS (PAX):*
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={availPax}
+                    onChange={(e) => setAvailPax(Math.max(1, Number(e.target.value)))}
+                    className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] text-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-0.5 text-[10px]">
+                    CATEGORIA:
+                  </label>
+                  <select
+                    value={availCategory}
+                    onChange={(e) => setAvailCategory(e.target.value)}
+                    className="w-full border border-black px-1 h-6 bg-white focus:bg-[#FFFFCC] text-xs"
+                  >
+                    <option value="TODAS">Todas as Categorias</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Availability Status Header */}
+            {availabilityResults.errorMessage ? (
+              <div className="p-2 border border-red-600 bg-red-100 text-red-900 text-xs font-bold mb-2 shrink-0">
+                ⚠️ {availabilityResults.errorMessage}
+              </div>
+            ) : (
+              <div className="p-1.5 border border-black bg-emerald-100 text-emerald-950 text-xs font-bold mb-2 flex items-center justify-between shrink-0">
+                <span>
+                  ✓ {availabilityResults.available.length} quarto(s) disponível(is) para {availPax} pessoa(s)
+                </span>
+                <span className="text-[10px] font-normal text-emerald-900">
+                  Período: {availCheckIn} a {availCheckOut} ({availabilityResults.nights} diária{availabilityResults.nights > 1 ? 's' : ''})
+                </span>
+              </div>
+            )}
+
+            {/* Results List: Available Rooms */}
+            <div className="flex-1 min-h-0 overflow-y-auto border border-black bg-white mb-2">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="sticky top-0 bg-[#FFFFCC] border-b border-black z-10">
+                  <tr>
+                    <th className="p-1.5 font-bold w-14 text-center">QUARTO</th>
+                    <th className="p-1.5 font-bold">CATEGORIA</th>
+                    <th className="p-1.5 font-bold text-center w-24">CAPACIDADE</th>
+                    <th className="p-1.5 font-bold text-right w-24">DIÁRIA</th>
+                    <th className="p-1.5 font-bold text-right w-28">ESTADIA TOTAL</th>
+                    <th className="p-1.5 font-bold text-center w-36">AÇÃO</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300">
+                  {availabilityResults.available.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-gray-500 bg-gray-50">
+                        <div className="font-bold text-black text-xs mb-1">
+                          NENHUM QUARTO DISPONÍVEL NESTAS DATAS
+                        </div>
+                        <div className="text-[11px] text-gray-600">
+                          Todos os quartos compatíveis estão ocupados, reservados ou em manutenção no período solicitado.
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    availabilityResults.available.map(({ room, total }) => (
+                      <tr
+                        key={room.id}
+                        className="hover:bg-[#FFFFCC] transition-colors"
+                      >
+                        <td className="p-1.5 font-bold text-center text-sm border-r border-gray-200">
+                          {room.number}
+                        </td>
+                        <td className="p-1.5 border-r border-gray-200">
+                          <div className="font-bold">{room.type}</div>
+                          <div className="text-[10px] text-gray-500">
+                            Status no sistema: {room.status}
+                          </div>
+                        </td>
+                        <td className="p-1.5 text-center border-r border-gray-200">
+                          <span className="font-bold">
+                            {room.capacity || 2} pessoa(s)
+                          </span>
+                        </td>
+                        <td className="p-1.5 text-right font-bold border-r border-gray-200">
+                          {formatCurrency(room.dailyRate)}
+                        </td>
+                        <td className="p-1.5 text-right font-bold text-emerald-800 border-r border-gray-200">
+                          {formatCurrency(total)}
+                        </td>
+                        <td className="p-1.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAvailableRoom(room)}
+                            className="px-2 py-1 border border-black bg-[#FFFFCC] hover:bg-black hover:text-white font-bold cursor-pointer text-xs transition-colors whitespace-nowrap shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                            title={`Selecionar Quarto ${room.number} para a reserva`}
+                          >
+                            [ SELECIONAR ]
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Unavailable Rooms Breakdown (Transparência Operacional) */}
+            {availabilityResults.unavailable.length > 0 && (
+              <details className="border border-black bg-gray-50 p-1.5 mb-2 text-[10px] shrink-0">
+                <summary className="cursor-pointer font-bold select-none text-gray-800 hover:text-black">
+                  ▶ Visualizar {availabilityResults.unavailable.length} quarto(s) indisponível(is) no período e motivos
+                </summary>
+                <div className="mt-1.5 max-h-28 overflow-y-auto space-y-1 pt-1 border-t border-gray-300">
+                  {availabilityResults.unavailable.map(({ room, reason }) => (
+                    <div key={room.id} className="flex items-center justify-between text-gray-700 bg-white p-1 border border-gray-200">
+                      <div>
+                        <strong>Quarto {room.number}</strong> ({room.type}):
+                      </div>
+                      <span className="text-red-700 font-semibold">{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between pt-1.5 border-t border-black shrink-0">
+              <span className="text-[10px] text-gray-600">
+                Ao selecionar o quarto, a ficha do hóspede será preenchida automaticamente com as datas e a diária.
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAvailabilityModalOpen(false)}
+                className="px-3 h-7 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-xs"
+              >
+                [ Fechar ]
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

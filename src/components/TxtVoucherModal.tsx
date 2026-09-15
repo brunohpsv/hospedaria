@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GuestReservation, Room } from '../types';
+import { formatCurrency } from '../lib/formatters';
 
 interface TxtVoucherModalProps {
   isOpen?: boolean;
@@ -69,9 +70,9 @@ DETALHES DA ACOMODAÇÃO:
   CHECK-OUT     : ${currentGuest.checkOut} (Até as 12:00)
 ----------------------------------------------------------------------
 DEMONSTRATIVO FINANCEIRO:
-  VALOR DA DIÁRIA  : R$ ${currentGuest.dailyRate.toFixed(2)}
+  VALOR DA DIÁRIA  : ${formatCurrency(currentGuest.dailyRate)}
   DESCONTO         : ${currentGuest.discount || 0}%
-  VALOR TOTAL PAGO : R$ ${currentGuest.totalAmount.toFixed(2)}
+  VALOR TOTAL PAGO : ${formatCurrency(currentGuest.totalAmount)}
   FORMA PAGAMENTO  : ${currentGuest.paymentMethod}
   STATUS DA ESTADIA: [${currentGuest.status.toUpperCase()}]
 ----------------------------------------------------------------------
@@ -111,7 +112,7 @@ Nº     TIPO            STATUS       DIÁRIA     HÓSPEDE ATUAL
       const numPad = r.number.padEnd(6, ' ');
       const typePad = r.type.slice(0, 14).padEnd(15, ' ');
       const statusPad = `[${r.status.toUpperCase()}]`.padEnd(12, ' ');
-      const ratePad = `R$ ${r.dailyRate.toFixed(2)}`.padEnd(10, ' ');
+      const ratePad = formatCurrency(r.dailyRate).padEnd(14, ' ');
       const guestPad = r.currentGuestName || '--- Vago ---';
       lines += `${numPad} ${typePad} ${statusPad} ${ratePad} ${guestPad}\n`;
     });

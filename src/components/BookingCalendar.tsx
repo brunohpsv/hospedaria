@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Room, GuestReservation } from '../types';
+import { formatCurrency } from '../lib/formatters';
 
 interface BookingCalendarProps {
   rooms: Room[];
@@ -217,7 +218,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
                 {selectedCellInfo.guest.document || '---'} | Tel:{' '}
                 {selectedCellInfo.guest.phone || '---'} | Período:{' '}
                 {selectedCellInfo.guest.checkIn} a {selectedCellInfo.guest.checkOut} | Total:{' '}
-                <strong>R$ {selectedCellInfo.guest.totalAmount.toFixed(2)}</strong>
+                <strong>{formatCurrency(selectedCellInfo.guest.totalAmount)}</strong>
               </div>
             ) : (
               <div className="text-[11px] text-gray-700">

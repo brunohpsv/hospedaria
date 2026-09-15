@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { GuestReservation, ClientAccount, FinancialRecord } from '../types';
 import { useDialog } from '../lib/dialogContext';
+import { formatCurrency, formatNumber2Decimals } from '../lib/formatters';
 
 interface FinanceiroProps {
   guests: GuestReservation[];
@@ -286,9 +287,9 @@ EMISSÃO        : ${new Date().toLocaleString('pt-BR')}
 ================================================================================
 
 [ RESUMO EXECUTIVO DO PERÍODO ]
-TOTAL RECEBIDO NO PERÍODO: R$ ${displayedTotal.toFixed(2)}
+TOTAL RECEBIDO NO PERÍODO: ${formatCurrency(displayedTotal)}
 TOTAL DE ENTRADAS/RECIBOS: ${displayedItems.length}
-TICKET MÉDIO POR ESTADIA : R$ ${(displayedItems.length > 0 ? displayedTotal / displayedItems.length : 0).toFixed(2)}
+TICKET MÉDIO POR ESTADIA : ${formatCurrency(displayedItems.length > 0 ? displayedTotal / displayedItems.length : 0)}
 
 --------------------------------------------------------------------------------
 [ QUANTO ENTROU EM CADA MÊS DE ${selectedYear} ]
@@ -301,20 +302,20 @@ MÊS        | TOTAL RECEBIDO (R$) | QTD ENTRADAS | BARRA VISUAL
       const barsCount = Math.round((m.percentOfMax / 100) * 15);
       const barStr = '█'.repeat(barsCount) + '░'.repeat(15 - barsCount);
       const isCurrentFilter = selectedMonth === m.monthIndex ? ' [SELECIONADO]' : '';
-      text += `${m.name.padEnd(11, ' ')}| R$ ${m.totalAmount.toFixed(2).padStart(17, ' ')} | ${String(m.count).padStart(12, ' ')} | [${barStr}] ${String(m.percentOfMax).padStart(3, ' ')}%${isCurrentFilter}\n`;
+      text += `${m.name.padEnd(11, ' ')}| ${formatCurrency(m.totalAmount).padStart(20, ' ')} | ${String(m.count).padStart(12, ' ')} | [${barStr}] ${String(m.percentOfMax).padStart(3, ' ')}%${isCurrentFilter}\n`;
     });
 
     text += `--------------------------------------------------------------------------------
-FATURAMENTO TOTAL ANUAL (${selectedYear}): R$ ${yearTotalRevenue.toFixed(2)}
-MÉDIA MENSAL DO ANO               : R$ ${averageMonthlyRevenue.toFixed(2)}
+FATURAMENTO TOTAL ANUAL (${selectedYear}): ${formatCurrency(yearTotalRevenue)}
+MÉDIA MENSAL DO ANO               : ${formatCurrency(averageMonthlyRevenue)}
 --------------------------------------------------------------------------------
 
 [ DISTRIBUIÇÃO POR FORMA DE PAGAMENTO ]
 `;
 
     paymentBreakdown.forEach(([method, data]) => {
-      const pct = displayedTotal > 0 ? ((data.total / displayedTotal) * 100).toFixed(1) : '0.0';
-      text += `${method.padEnd(25, ' ')}: R$ ${data.total.toFixed(2).padStart(12, ' ')} (${pct}%) - ${data.count} lançamento(s)\n`;
+      const pct = displayedTotal > 0 ? ((data.total / displayedTotal) * 100).toFixed(1).replace('.', ',') : '0,0';
+      text += `${method.padEnd(25, ' ')}: ${formatCurrency(data.total).padStart(16, ' ')} (${pct}%) - ${data.count} lançamento(s)\n`;
     });
 
     text += `\n--------------------------------------------------------------------------------
@@ -326,11 +327,11 @@ DATA       | QTO  | HÓSPEDE / DESCRIÇÃO                    | FORMA PAGTO     
 
     displayedItems.forEach((item) => {
       const cleanDesc = (item.guestName !== '-' ? item.guestName : item.title).slice(0, 36);
-      text += `${item.date} | ${item.roomNumber.padEnd(4, ' ')} | ${cleanDesc.padEnd(38, ' ')} | ${item.paymentMethod.slice(0, 15).padEnd(15, ' ')} | R$ ${item.netAmount.toFixed(2).padStart(9, ' ')}\n`;
+      text += `${item.date} | ${item.roomNumber.padEnd(4, ' ')} | ${cleanDesc.padEnd(38, ' ')} | ${item.paymentMethod.slice(0, 15).padEnd(15, ' ')} | ${formatNumber2Decimals(item.netAmount).padStart(10, ' ')}\n`;
     });
 
     text += `--------------------------------------------------------------------------------
-TOTAL GERAL DO PERÍODO: R$ ${displayedTotal.toFixed(2)}
+TOTAL GERAL DO PERÍODO: ${formatCurrency(displayedTotal)}
 ================================================================================
 RELATÓRIO GERADO AUTOMATICAMENTE PELO SISTEMA HOTEL NOTEPAD`;
 
@@ -625,7 +626,7 @@ RELATÓRIO GERADO AUTOMATICAMENTE PELO SISTEMA HOTEL NOTEPAD`;
                             onClick={() => {
                               showConfirm({
                                 title: 'EXCLUIR LANÇAMENTO',
-                                message: `Deseja excluir a receita de R$ ${item.netAmount.toFixed(2)} (${item.title})?`,
+                                message: `Deseja excluir a receita de ${formatCurrency(item.netAmount)} (${item.title})?`,
                                 confirmText: '[ Sim, Excluir ]',
                                 onConfirm: () => {
                                   const rawId = item.id.replace('rec-', '');
