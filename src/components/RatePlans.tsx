@@ -135,7 +135,7 @@ VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
       {/* Top Header */}
       <div className="border-b border-black pb-1.5 mb-2 flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-2">
-          <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
+          <h2 className="bg-black text-white px-2 py-0.5 text-xs font-bold border border-black tracking-wide">
             TABELA DE VALORES & TARIFÁRIO
           </h2>
           <span className="text-[10px] text-gray-700">
@@ -143,7 +143,7 @@ VALOR TOTAL:      R$ ${simTotal.toFixed(2)}
           </span>
         </div>
         {editedNotification && (
-          <span className="bg-black text-[#FFFFCC] px-2 py-0.5 text-[10px] font-bold">
+          <span className="bg-black text-white px-2 py-0.5 text-[10px] font-bold">
             {editedNotification}
           </span>
         )}

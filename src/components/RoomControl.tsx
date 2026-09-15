@@ -186,7 +186,7 @@ export const RoomControl: React.FC<RoomControlProps> = ({
       {/* Top Header */}
       <div className="border-b border-black pb-1.5 mb-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center space-x-2">
-          <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
+          <h2 className="bg-black text-white px-2 py-0.5 text-xs font-bold border border-black tracking-wide">
             CONTROLE DE QUARTOS
           </h2>
           <span className="text-[10px] text-gray-700">
@@ -198,13 +198,13 @@ export const RoomControl: React.FC<RoomControlProps> = ({
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowCategoryModal(true)}
-            className="px-2 py-0.5 border border-black bg-white hover:bg-[#FFFFCC] font-bold cursor-pointer text-[11px]"
+            className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-[11px] transition-colors"
           >
             [ GERENCIAR CATEGORIAS ({categories.length}) ]
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-2 py-0.5 border border-black bg-[#FFFFCC] hover:bg-[#ffff99] font-bold cursor-pointer text-[11px]"
+            className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-[11px] transition-colors"
           >
             {showAddForm ? '[-] Fechar' : '[+] Novo Quarto'}
           </button>

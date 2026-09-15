@@ -41,12 +41,13 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   }, []);
 
   const tabLabels: Record<ActiveTab, string> = {
-    hospedes: 'HÓSPEDES',
+    hospedes: 'HÓSPEDES & CHECK-IN',
     quartos: 'QUARTOS',
+    calendario: 'CALENDÁRIO DE RESERVAS',
+    financeiro: 'FINANCEIRO & FATURAMENTO',
     valores: 'VALORES & TARIFÁRIO',
-    calendario: 'CALENDÁRIO',
-    funcionarios: 'FUNCIONÁRIOS & EQUIPE',
     estoque: 'ESTOQUE & ALMOXARIFADO',
+    funcionarios: 'FUNCIONÁRIOS & EQUIPE',
     empresa: 'DADOS DO ESTABELECIMENTO',
   };
 
@@ -57,7 +58,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     <footer className="bg-white border-t border-black px-2 py-1 text-[11px] font-mono select-none flex flex-wrap items-center justify-between gap-2 text-black">
       <div className="flex items-center space-x-3">
         <span>
-          MODO: <strong className="bg-[#FFFFCC] px-1 border border-black">{tabLabels[activeTab]}</strong>
+          MODO: <strong className="bg-gray-100 px-1 border border-black">{tabLabels[activeTab]}</strong>
         </span>
         <span className="text-gray-400">|</span>
         <span>
@@ -78,10 +79,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <span className="flex items-center space-x-1">
           <span
             className={`w-2 h-2 rounded-full inline-block ${
-              isCloudSynced ? 'bg-emerald-500' : 'bg-amber-400'
+              isCloudSynced ? 'bg-emerald-600' : 'bg-gray-400'
             }`}
           />
-          <span className="text-gray-700">{isCloudSynced ? 'CONECTADO' : 'OFFLINE'}</span>
+          <span className="text-gray-700">{isCloudSynced ? 'ONLINE' : 'OFFLINE'}</span>
         </span>
 
         <span className="text-gray-400">|</span>

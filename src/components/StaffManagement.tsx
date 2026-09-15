@@ -400,9 +400,9 @@ FOLHA SALARIAL MENSAL: R$ ${totalPayroll.toLocaleString('pt-BR', { minimumFracti
   return (
     <div className="h-full flex flex-col font-mono text-xs select-none bg-white">
       {/* Top Bar: Summary, Filter & Action Buttons */}
-      <div className="border-b border-black p-2 bg-[#FFFFCC] flex flex-wrap items-center justify-between gap-2 shrink-0">
+      <div className="border-b border-black p-2 bg-white flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center space-x-3 flex-wrap">
-          <span className="font-bold text-sm bg-black text-white px-2 py-0.5">
+          <span className="font-bold text-sm bg-black text-white px-2 py-0.5 border border-black">
             GESTÃO DE FUNCIONÁRIOS
           </span>
 
@@ -433,7 +433,7 @@ FOLHA SALARIAL MENSAL: R$ ${totalPayroll.toLocaleString('pt-BR', { minimumFracti
           <button
             type="button"
             onClick={() => setShowWorkplacesModal(true)}
-            className="px-2.5 py-1 border border-black bg-white hover:bg-[#ffff99] font-bold cursor-pointer text-[11px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5"
+            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-[11px] transition-colors"
             title="Cadastrar e gerenciar locais de trabalho (ex: Cozinha, Recepção, etc.)"
           >
             ⚙ GERENCIAR LOCAIS ({workplaces.length})
@@ -442,7 +442,7 @@ FOLHA SALARIAL MENSAL: R$ ${totalPayroll.toLocaleString('pt-BR', { minimumFracti
           <button
             type="button"
             onClick={handleGenerateFullStaffTxt}
-            className="px-2.5 py-1 border border-black bg-white hover:bg-[#ffff99] font-bold cursor-pointer text-[11px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5"
+            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-[11px] transition-colors"
             title="Exportar relatório completo da equipe e folha em formato Bloco de Notas .TXT"
           >
             📄 RELAÇÃO EM .TXT

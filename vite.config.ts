@@ -15,10 +15,15 @@ export default defineConfig(({ command }) => {
       {
         name: 'github-pages-helper',
         closeBundle() {
-          const distDir = path.resolve(__dirname, 'dist');
+          const distDir = path.resolve(process.cwd(), 'dist');
           const indexPath = path.join(distDir, 'index.html');
           const notFoundPath = path.join(distDir, '404.html');
           const nojekyllDist = path.join(distDir, '.nojekyll');
+
+          // Ensure dist directory exists
+          if (!fs.existsSync(distDir)) {
+            fs.mkdirSync(distDir, { recursive: true });
+          }
 
           // 1. Create 404.html fallback for direct links / SPAs
           if (fs.existsSync(indexPath)) {
@@ -29,7 +34,7 @@ export default defineConfig(({ command }) => {
           fs.writeFileSync(nojekyllDist, '');
 
           // 3. Keep docs/ updated as fallback so GitHub never fails with "No such file or directory: docs"
-          const docsDir = path.resolve(__dirname, 'docs');
+          const docsDir = path.resolve(process.cwd(), 'docs');
           try {
             if (fs.existsSync(docsDir)) {
               fs.rmSync(docsDir, { recursive: true, force: true });

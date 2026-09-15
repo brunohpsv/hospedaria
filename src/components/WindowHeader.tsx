@@ -31,21 +31,23 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
 }) => {
   const planInfo = currentClient ? SUBSCRIPTION_PLANS[currentClient.plan] : null;
 
+  // Clean, ordered, zero-duplicate navigation tabs
   const tabs: { id: ActiveTab; label: string; shortcut: string }[] = [
     { id: 'hospedes', label: 'HÓSPEDES', shortcut: 'F2' },
     { id: 'quartos', label: 'QUARTOS', shortcut: 'F3' },
-    { id: 'valores', label: 'VALORES', shortcut: 'F4' },
-    { id: 'calendario', label: 'CALENDÁRIO', shortcut: 'F5' },
-    { id: 'funcionarios', label: 'FUNCIONÁRIOS', shortcut: 'F6' },
-    { id: 'estoque', label: 'ESTOQUE', shortcut: 'F9' },
-    { id: 'empresa', label: 'ESTABELECIMENTO', shortcut: 'F8' },
+    { id: 'calendario', label: 'CALENDÁRIO', shortcut: 'F4' },
+    { id: 'financeiro', label: 'FINANCEIRO', shortcut: 'F5' },
+    { id: 'valores', label: 'TARIFÁRIO', shortcut: 'F6' },
+    { id: 'estoque', label: 'ESTOQUE', shortcut: 'F7' },
+    { id: 'funcionarios', label: 'EQUIPE', shortcut: 'F8' },
+    { id: 'empresa', label: 'ESTABELECIMENTO', shortcut: 'F9' },
   ];
 
   return (
     <header className="bg-white border-b border-black select-none font-mono text-xs shrink-0">
-      {/* Top System Bar: Brand, Hotel Identity & Global Utilities */}
-      <div className="flex items-center justify-between border-b border-gray-300 px-3 py-1.5 bg-white gap-2 flex-wrap">
-        {/* Left: Brand Identity & Active Establishment Name */}
+      {/* Top System Bar: Clean Brand, Establishment Identity & Utilities */}
+      <div className="flex items-center justify-between border-b border-black px-3 py-1.5 bg-white gap-2 flex-wrap">
+        {/* Left: System Brand & Active Establishment */}
         <div className="flex items-center space-x-2 min-w-0">
           <span className="font-bold bg-black text-white px-2 py-0.5 text-xs tracking-wider border border-black">
             HOTEL NOTEPAD
@@ -66,9 +68,9 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
           )}
         </div>
 
-        {/* Right: Search, Shortcuts, Online Status & Logout */}
+        {/* Right: Clean Search, Shortcuts & Account Exit */}
         <div className="flex items-center space-x-2 text-xs">
-          {/* Quick Search Box */}
+          {/* Quick Search Input */}
           <div className="flex items-center border border-black bg-white px-2 h-6">
             <span className="text-[10px] font-bold mr-1.5 text-gray-600">BUSCAR:</span>
             <input
@@ -76,7 +78,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Nome, quarto, código..."
+              placeholder="Nome, quarto, CPF..."
               className="w-32 sm:w-44 bg-transparent text-xs focus:outline-none"
             />
             {searchQuery && (
@@ -90,7 +92,16 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
             )}
           </div>
 
-          {/* Shortcuts Modal Trigger */}
+          {/* Quick TXT Export Voucher */}
+          <button
+            onClick={onOpenTxtExport}
+            className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white cursor-pointer text-[11px] font-bold transition-colors"
+            title="Exportar Comprovante / Ficha TXT (F10)"
+          >
+            FICHA TXT
+          </button>
+
+          {/* Shortcuts Guide (F1) */}
           <button
             onClick={onOpenShortcuts}
             className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white cursor-pointer text-[11px] font-bold transition-colors"
@@ -99,18 +110,18 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
             ATALHOS (F1)
           </button>
 
-          {/* Realtime Cloud Sync Status */}
+          {/* Clean Realtime Status Dot (Zero yellow/amber alerts) */}
           <div
             className="flex items-center space-x-1.5 px-2 py-0.5 border border-black text-[10px] bg-white"
-            title="Sincronização em nuvem ativa"
+            title={isCloudSynced ? 'Conexão ativa e sincronizada' : 'Modo offline'}
           >
             <span
               className={`w-2 h-2 rounded-full inline-block ${
-                isCloudSynced ? 'bg-emerald-500' : 'bg-amber-400'
+                isCloudSynced ? 'bg-emerald-600' : 'bg-gray-400'
               }`}
             />
             <span className="font-bold text-gray-800">
-              {isCloudSynced ? 'ONLINE' : 'SINCRONIZANDO'}
+              {isCloudSynced ? 'ONLINE' : 'OFFLINE'}
             </span>
           </div>
 
@@ -120,7 +131,7 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
               id="top-btn-logout"
               onClick={onLogout}
               className="px-2.5 py-0.5 border border-black bg-white text-red-700 hover:bg-red-600 hover:text-white cursor-pointer text-xs font-bold transition-colors"
-              title="Encerrar sessão"
+              title="Encerrar sessão e trocar de usuário"
             >
               SAIR
             </button>
@@ -128,10 +139,9 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
         </div>
       </div>
 
-      {/* Bottom Bar: Clean Navigation Tabs & Primary Actions */}
+      {/* Bottom Bar: Clean, Organized Navigation Tabs - Zero Pollution */}
       <div className="flex items-center justify-between px-3 py-1 bg-white border-b border-black gap-2 flex-wrap">
-        {/* Navigation Tabs - Clean, Ordered, Zero Duplicates */}
-        <nav className="flex items-center space-x-1 flex-wrap">
+        <nav className="flex items-center space-x-1 flex-wrap gap-y-1">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -145,30 +155,18 @@ export const WindowHeader: React.FC<WindowHeaderProps> = ({
                 }`}
                 title={`Alternar para aba ${tab.label} (${tab.shortcut})`}
               >
-                {tab.label} <span className={`text-[10px] ml-0.5 ${isActive ? 'text-gray-300' : 'text-gray-500'}`}>({tab.shortcut})</span>
+                {tab.label}{' '}
+                <span
+                  className={`text-[10px] ml-0.5 ${
+                    isActive ? 'text-gray-300' : 'text-gray-500'
+                  }`}
+                >
+                  ({tab.shortcut})
+                </span>
               </button>
             );
           })}
         </nav>
-
-        {/* Primary Action Buttons */}
-        <div className="flex items-center space-x-1.5">
-          <button
-            onClick={onNewGuest}
-            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-xs transition-colors"
-            title="Cadastrar Novo Hóspede (Ctrl+N)"
-          >
-            + NOVO HÓSPEDE
-          </button>
-
-          <button
-            onClick={onOpenTxtExport}
-            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white cursor-pointer text-xs font-bold transition-colors"
-            title="Exportar Ficha TXT (F7)"
-          >
-            FICHA TXT
-          </button>
-        </div>
       </div>
     </header>
   );

@@ -33,6 +33,8 @@ export const EstablishmentSettings: React.FC<EstablishmentSettingsProps> = ({
   const [responsibleCpf, setResponsibleCpf] = useState(currentClient.responsibleCpf || '');
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanType>(currentClient.plan);
   const [accessKey, setAccessKey] = useState(currentClient.accessKey || '');
+  const [checkInTime, setCheckInTime] = useState(currentClient.checkInTime || '14:00');
+  const [checkOutTime, setCheckOutTime] = useState(currentClient.checkOutTime || '12:00');
   const [showKey, setShowKey] = useState(false);
 
   // TXT Comprovante modal
@@ -94,11 +96,13 @@ export const EstablishmentSettings: React.FC<EstablishmentSettingsProps> = ({
           responsibleCpf: responsibleCpf.trim(),
           plan: selectedPlan,
           accessKey: accessKey.trim(),
+          checkInTime: checkInTime.trim() || '14:00',
+          checkOutTime: checkOutTime.trim() || '12:00',
         };
 
         onUpdateClient(updated);
         showAlert(
-          'Dados cadastrais do estabelecimento atualizados e sincronizados com sucesso!',
+          'Dados cadastrais e horários do estabelecimento atualizados e sincronizados com sucesso!',
           'CADASTRO ATUALIZADO'
         );
       },
@@ -119,6 +123,8 @@ CPF / CNPJ         : ${cpfCnpj}
 E-MAIL COMERCIAL   : ${email}
 TELEFONE / WHATSAPP: ${phone}
 DATA DE CADASTRO   : ${currentClient.createdAt}
+CHECK-IN PADRÃO    : ${checkInTime || '14:00'} (Entrada)
+CHECK-OUT PADRÃO   : ${checkOutTime || '12:00'} (Saída)
 
 [ RESPONSÁVEL LEGAL ]
 NOME COMPLETO      : ${responsibleName.toUpperCase()}
@@ -170,9 +176,9 @@ CHAVE DE ACESSO ATIVA: ${accessKey}
   return (
     <div className="h-full flex flex-col font-mono text-xs select-none bg-white overflow-y-auto">
       {/* Top Banner */}
-      <div className="border-b border-black p-2 bg-[#FFFFCC] flex flex-wrap items-center justify-between gap-2 shrink-0">
+      <div className="border-b border-black p-2 bg-white flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center space-x-3 flex-wrap">
-          <span className="font-bold text-sm bg-black text-white px-2 py-0.5">
+          <span className="font-bold text-sm bg-black text-white px-2 py-0.5 border border-black">
             DADOS CADASTRAIS DO ESTABELECIMENTO
           </span>
           <span className="border border-black bg-white px-2 py-0.5 text-[11px] font-bold">
@@ -187,7 +193,7 @@ CHAVE DE ACESSO ATIVA: ${accessKey}
           <button
             type="button"
             onClick={handleGenerateCertificateTxt}
-            className="px-2.5 py-1 border border-black bg-white hover:bg-[#ffff99] font-bold cursor-pointer text-[11px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5"
+            className="px-2.5 py-1 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-[11px] transition-colors"
             title="Exportar comprovante cadastral em arquivo TXT"
           >
             📄 COMPROVANTE CADASTRO .TXT
@@ -197,7 +203,7 @@ CHAVE DE ACESSO ATIVA: ${accessKey}
             <button
               type="button"
               onClick={onLogout}
-              className="px-2.5 py-1 border border-black bg-red-600 text-white hover:bg-black font-bold cursor-pointer text-[11px] shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+              className="px-2.5 py-1 border border-black bg-white text-red-700 hover:bg-red-600 hover:text-white font-bold cursor-pointer text-[11px] transition-colors"
             >
               [ SAIR DO SISTEMA ]
             </button>
@@ -326,6 +332,45 @@ CHAVE DE ACESSO ATIVA: ${accessKey}
                   placeholder="(11) 98765-4321"
                   className="w-full border border-black px-2.5 h-8 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs"
                 />
+              </div>
+            </div>
+
+            {/* Horários Padrão de Check-in e Check-out do Estabelecimento */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#FFFFCC]/30 p-2.5 border border-black">
+              <div>
+                <label className="block font-bold mb-1 text-[11px]" htmlFor="edit-est-checkin">
+                  HORÁRIO DE CHECK-IN (ENTRADA DO ESTABELECIMENTO):
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="edit-est-checkin"
+                    type="time"
+                    value={checkInTime}
+                    onChange={(e) => setCheckInTime(e.target.value)}
+                    className="w-32 border border-black px-2 h-7 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs font-bold"
+                  />
+                  <span className="text-[10px] text-gray-600">
+                    Horário padrão para início da diária (ex: 14:00)
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-[11px]" htmlFor="edit-est-checkout">
+                  HORÁRIO DE CHECK-OUT (SAÍDA DO ESTABELECIMENTO):
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="edit-est-checkout"
+                    type="time"
+                    value={checkOutTime}
+                    onChange={(e) => setCheckOutTime(e.target.value)}
+                    className="w-32 border border-black px-2 h-7 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs font-bold"
+                  />
+                  <span className="text-[10px] text-gray-600">
+                    Horário limite para entrega da chave (ex: 12:00)
+                  </span>
+                </div>
               </div>
             </div>
           </div>

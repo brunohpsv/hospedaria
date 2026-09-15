@@ -92,4 +92,6 @@ export const DEMO_CLIENT: ClientAccount = {
   plan: 'profissional',
   accessKey: 'Hosp123!',
   createdAt: '2026-01-01',
+  checkInTime: '14:00',
+  checkOutTime: '12:00',
 };

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ClientAccount, SubscriptionPlanType } from '../types';
 import { SUBSCRIPTION_PLANS, validateAccessKey, DEMO_CLIENT } from '../lib/authConstants';
-import { saveClientToFirestore, getAllClientsFromFirestore } from '../lib/hotelFirebaseService';
+import {
+  saveClientToFirestore,
+  getAllClientsFromFirestore,
+  findClientByAccessKey,
+  seedClientFirestoreData,
+} from '../lib/hotelFirebaseService';
 import { useDialog } from '../lib/dialogContext';
 import { AdminPortalModal } from './AdminPortalModal';
 
@@ -44,7 +49,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
   const keyValidation = validateAccessKey(accessKey);
 
   // Handle Login submission
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
 
@@ -54,10 +59,31 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
       return;
     }
 
-    // Check in registered clients (local and cloud)
-    const found = registeredClients.find(
+    setIsSubmitting(true);
+
+    // 1. Check in registered clients in memory
+    let found = registeredClients.find(
       (c) => c.accessKey === inputKey || c.accessKey.trim().toLowerCase() === inputKey.toLowerCase()
     );
+
+    // 2. Direct Firestore query if not found locally (cross-device/reloads)
+    if (!found) {
+      try {
+        const cloudFound = await findClientByAccessKey(inputKey);
+        if (cloudFound) {
+          found = cloudFound;
+        }
+      } catch (err) {
+        console.warn('Busca no Firestore falhou:', err);
+      }
+    }
+
+    // 3. Check demo client default key
+    if (!found && inputKey === DEMO_CLIENT.accessKey) {
+      found = DEMO_CLIENT;
+    }
+
+    setIsSubmitting(false);
 
     if (found) {
       if (found.status === 'suspenso') {
@@ -69,12 +95,6 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
         return;
       }
       onLoginSuccess(found);
-      return;
-    }
-
-    // Check demo client default key
-    if (inputKey === DEMO_CLIENT.accessKey) {
-      onLoginSuccess(DEMO_CLIENT);
       return;
     }
 
@@ -152,10 +172,13 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
       plan: selectedPlan,
       accessKey: accessKey.trim(),
       createdAt: new Date().toISOString().split('T')[0],
+      checkInTime: '14:00',
+      checkOutTime: '12:00',
     };
 
     try {
       await saveClientToFirestore(newClient);
+      await seedClientFirestoreData(newClient.id, false);
     } catch (err) {
       console.warn('Registro salvo localmente (modo offline):', err);
     }

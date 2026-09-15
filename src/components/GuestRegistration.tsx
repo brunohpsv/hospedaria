@@ -143,12 +143,16 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!name.trim()) {
-      showAlert('Por favor, informe o nome completo do hóspede.', 'CAMPO OBRIGATÓRIO');
+      showAlert('Por favor, informe o NOME COMPLETO do hóspede.', 'CAMPO OBRIGATÓRIO');
       nameInputRef.current?.focus();
       return;
     }
-    if (!roomNumber) {
-      showAlert('Por favor, selecione um quarto para este hóspede.', 'QUARTO NÃO SELECIONADO');
+    if (!document.trim()) {
+      showAlert('Por favor, informe o CPF/RG do hóspede.', 'CAMPO OBRIGATÓRIO');
+      return;
+    }
+    if (!phone.trim()) {
+      showAlert('Por favor, informe o CONTATO (Telefone ou WhatsApp) do hóspede.', 'CAMPO OBRIGATÓRIO');
       return;
     }
 
@@ -159,7 +163,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
       phone: phone.trim(),
       email: email.trim(),
       city: city.trim(),
-      roomNumber,
+      roomNumber: roomNumber || '',
       checkIn,
       checkOut,
       numGuests: Number(numGuests) || 1,
@@ -200,7 +204,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
       {/* Top Section Header with Quick Stats & Action */}
       <div className="border-b border-black pb-1.5 mb-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
         <div className="flex items-center space-x-2 flex-wrap">
-          <h2 className="bg-[#FFFFCC] px-2 py-0.5 text-xs font-bold border border-black">
+          <h2 className="bg-black text-white px-2 py-0.5 text-xs font-bold border border-black tracking-wide">
             CADASTRO DE HÓSPEDES
           </h2>
           <span className="text-[10px] text-gray-700">
@@ -217,14 +221,14 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
 
         <div className="flex items-center space-x-2">
           {formFeedback && (
-            <span className="bg-[#FFFFCC] border border-black px-2 py-0.5 text-[10px] font-bold">
+            <span className="bg-gray-100 text-gray-900 border border-black px-2 py-0.5 text-[10px] font-bold">
               {formFeedback}
             </span>
           )}
           <button
             type="button"
             onClick={handleClearForm}
-            className="px-2 py-0.5 border border-black bg-white hover:bg-[#FFFFCC] cursor-pointer text-[11px] font-bold"
+            className="px-2 py-0.5 border border-black bg-white hover:bg-black hover:text-white cursor-pointer text-[11px] font-bold transition-colors"
             title="Limpar formulário e cadastrar novo (Ctrl+N)"
           >
             [+ Novo Formulário]
@@ -266,25 +270,27 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-doc">
-                  CPF / RG:
+                  CPF / RG:*
                 </label>
                 <input
                   id="guest-doc"
                   type="text"
+                  required
                   value={document}
                   onChange={(e) => setDocument(e.target.value)}
-                  placeholder="000.000.000-00"
+                  placeholder="000.000.000-00 ou RG"
                   className="w-full border border-black px-2 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs"
                 />
               </div>
 
               <div>
                 <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-phone">
-                  TELEFONE / WHATSAPP:
+                  CONTATO (TEL / WHATSAPP):*
                 </label>
                 <input
                   id="guest-phone"
                   type="text"
+                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(00) 00000-0000"
@@ -297,7 +303,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-email">
-                  E-MAIL:
+                  E-MAIL (OPCIONAL):
                 </label>
                 <input
                   id="guest-email"
@@ -311,7 +317,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
 
               <div>
                 <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-city">
-                  CIDADE / UF:
+                  CIDADE / UF (OPCIONAL):
                 </label>
                 <input
                   id="guest-city"
@@ -328,7 +334,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
             <div className="grid grid-cols-3 gap-2 border-t border-black pt-2">
               <div className="col-span-2">
                 <label className="block font-bold mb-0.5 text-[10px]" htmlFor="guest-room">
-                  QUARTO / UNIDADE:*
+                  QUARTO / UNIDADE (OPCIONAL):
                 </label>
                 <select
                   id="guest-room"
@@ -336,7 +342,7 @@ export const GuestRegistration: React.FC<GuestRegistrationProps> = ({
                   onChange={(e) => handleRoomChange(e.target.value)}
                   className="w-full border border-black px-1.5 h-6 bg-white focus:bg-[#FFFFCC] focus:outline-none text-xs font-bold"
                 >
-                  <option value="">-- Selecione o Quarto --</option>
+                  <option value="">-- Sem Quarto Definido / Reserva Avulsa --</option>
                   {rooms.map((r) => {
                     const statusTag =
                       r.status === 'livre'

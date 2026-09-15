@@ -11,7 +11,16 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Room, GuestReservation, RatePlan, ClientAccount, Employee, InventoryItem, StockExitRecord } from '../types';
+import {
+  Room,
+  GuestReservation,
+  RatePlan,
+  ClientAccount,
+  Employee,
+  InventoryItem,
+  StockExitRecord,
+  FinancialRecord,
+} from '../types';
 import {
   INITIAL_ROOMS,
   INITIAL_GUESTS,
@@ -345,7 +354,8 @@ export function subscribeStockExits(
 // Room Operations
 export async function saveRoomToFirestore(clientId: string, room: Room): Promise<void> {
   if (!db || !clientId) return;
-  await setDoc(clientDoc(clientId, 'rooms', room.id), cleanDoc(room), { merge: true });
+  // Full document set (without merge) ensures cleared/undefined fields are genuinely removed
+  await setDoc(clientDoc(clientId, 'rooms', room.id), cleanDoc(room));
 }
 
 export async function deleteRoomFromFirestore(clientId: string, roomId: string): Promise<void> {
@@ -356,7 +366,8 @@ export async function deleteRoomFromFirestore(clientId: string, roomId: string):
 // Guest Operations
 export async function saveGuestToFirestore(clientId: string, guest: GuestReservation): Promise<void> {
   if (!db || !clientId) return;
-  await setDoc(clientDoc(clientId, 'guests', guest.id), cleanDoc(guest), { merge: true });
+  // Full document set (without merge) ensures edited fields and status are accurately written
+  await setDoc(clientDoc(clientId, 'guests', guest.id), cleanDoc(guest));
 }
 
 export async function deleteGuestFromFirestore(clientId: string, guestId: string): Promise<void> {
@@ -381,7 +392,7 @@ export async function deleteCategoryFromFirestore(clientId: string, categoryName
 // Rate Plan Operations
 export async function saveRatePlanToFirestore(clientId: string, plan: RatePlan): Promise<void> {
   if (!db || !clientId) return;
-  await setDoc(clientDoc(clientId, 'ratePlans', plan.id), cleanDoc(plan), { merge: true });
+  await setDoc(clientDoc(clientId, 'ratePlans', plan.id), cleanDoc(plan));
 }
 
 export async function deleteRatePlanFromFirestore(clientId: string, planId: string): Promise<void> {
@@ -406,7 +417,7 @@ export async function deleteWorkplaceFromFirestore(clientId: string, workplaceNa
 // Employee Operations
 export async function saveEmployeeToFirestore(clientId: string, employee: Employee): Promise<void> {
   if (!db || !clientId) return;
-  await setDoc(clientDoc(clientId, 'employees', employee.id), cleanDoc(employee), { merge: true });
+  await setDoc(clientDoc(clientId, 'employees', employee.id), cleanDoc(employee));
 }
 
 export async function deleteEmployeeFromFirestore(clientId: string, employeeId: string): Promise<void> {
@@ -417,7 +428,7 @@ export async function deleteEmployeeFromFirestore(clientId: string, employeeId: 
 // Inventory Operations
 export async function saveInventoryItemToFirestore(clientId: string, item: InventoryItem): Promise<void> {
   if (!db || !clientId) return;
-  await setDoc(clientDoc(clientId, 'inventory', item.id), cleanDoc(item), { merge: true });
+  await setDoc(clientDoc(clientId, 'inventory', item.id), cleanDoc(item));
 }
 
 export async function deleteInventoryItemFromFirestore(clientId: string, itemId: string): Promise<void> {
@@ -428,12 +439,55 @@ export async function deleteInventoryItemFromFirestore(clientId: string, itemId:
 // Stock Exits Operations (Saídas)
 export async function saveStockExitToFirestore(clientId: string, exitRecord: StockExitRecord): Promise<void> {
   if (!db || !clientId) return;
-  await setDoc(clientDoc(clientId, 'stockExits', exitRecord.id), cleanDoc(exitRecord), { merge: true });
+  await setDoc(clientDoc(clientId, 'stockExits', exitRecord.id), cleanDoc(exitRecord));
 }
 
 export async function deleteStockExitFromFirestore(clientId: string, exitId: string): Promise<void> {
   if (!db || !clientId) return;
   await deleteDoc(clientDoc(clientId, 'stockExits', exitId));
+}
+
+// Financial Records Operations (Lançamentos e Entradas Financeiras)
+export function subscribeFinancialRecords(
+  clientId: string,
+  onData: (records: FinancialRecord[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  if (!db || !clientId) {
+    onError?.(new Error('Banco de dados indisponível (modo offline)'));
+    return () => {};
+  }
+  return onSnapshot(
+    clientCollection(clientId, 'financialRecords'),
+    (snap) => {
+      const records: FinancialRecord[] = [];
+      snap.forEach((docSnap) => {
+        records.push(docSnap.data() as FinancialRecord);
+      });
+      records.sort((a, b) => b.date.localeCompare(a.date));
+      onData(records);
+    },
+    (err) => {
+      console.error(`[Firestore] Erro no listener financeiro do cliente ${clientId}:`, err);
+      onError?.(err);
+    }
+  );
+}
+
+export async function saveFinancialRecordToFirestore(
+  clientId: string,
+  record: FinancialRecord
+): Promise<void> {
+  if (!db || !clientId) return;
+  await setDoc(clientDoc(clientId, 'financialRecords', record.id), cleanDoc(record));
+}
+
+export async function deleteFinancialRecordFromFirestore(
+  clientId: string,
+  recordId: string
+): Promise<void> {
+  if (!db || !clientId) return;
+  await deleteDoc(clientDoc(clientId, 'financialRecords', recordId));
 }
 
 // -----------------------------------------------------------------------------
@@ -564,6 +618,58 @@ export async function clearAllFirestoreData(clientId: string): Promise<void> {
 export async function saveClientToFirestore(client: ClientAccount): Promise<void> {
   if (!db) return;
   await setDoc(doc(db, 'clients', client.id), cleanDoc(client), { merge: true });
+}
+
+export async function getClientFromFirestore(clientId: string): Promise<ClientAccount | null> {
+  if (!db || !clientId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'clients', clientId));
+    if (snap.exists()) {
+      return snap.data() as ClientAccount;
+    }
+  } catch (err) {
+    console.error(`[Firestore] Erro ao buscar dados do cliente ${clientId}:`, err);
+  }
+  return null;
+}
+
+export async function findClientByAccessKey(accessKey: string): Promise<ClientAccount | null> {
+  if (!db) return null;
+  try {
+    const clients = await getAllClientsFromFirestore();
+    const cleanKey = accessKey.trim().toLowerCase();
+    const found = clients.find(
+      (c) => c.accessKey && c.accessKey.trim().toLowerCase() === cleanKey
+    );
+    return found || null;
+  } catch (err) {
+    console.error('[Firestore] Erro ao buscar cliente por chave de acesso:', err);
+    return null;
+  }
+}
+
+export function subscribeClients(
+  onData: (clients: ClientAccount[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  if (!db) return () => {};
+  return onSnapshot(
+    collection(db, 'clients'),
+    (snap) => {
+      const list: ClientAccount[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.cpfCnpj && data.accessKey) {
+          list.push(data as ClientAccount);
+        }
+      });
+      onData(list);
+    },
+    (err) => {
+      console.error('[Firestore] Erro ao assinar lista de clientes:', err);
+      onError?.(err);
+    }
+  );
 }
 
 export async function getAllClientsFromFirestore(): Promise<ClientAccount[]> {

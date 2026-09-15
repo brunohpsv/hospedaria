@@ -13,19 +13,20 @@ input:focus, select:focus, textarea:focus {
   outline: 1px solid #000000 !important;
 }
 
+/* Selection color: clean vibrant green as requested by user */
 ::selection {
-  background-color: #86efac;
-  color: #052e16;
+  background-color: #4ade80 !important;
+  color: #000000 !important;
 }
 
 ::-moz-selection {
-  background-color: #86efac;
-  color: #052e16;
+  background-color: #4ade80 !important;
+  color: #000000 !important;
 }
 
-input::selection, textarea::selection, select::selection {
-  background-color: #86efac !important;
-  color: #052e16 !important;
+*::selection, *::-moz-selection, input::selection, textarea::selection, select::selection {
+  background-color: #4ade80 !important;
+  color: #000000 !important;
 }
 
 /* Custom scrollbar in simple classic Windows style */

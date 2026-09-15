@@ -133,7 +133,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
     <div className="h-full flex flex-col p-2 bg-white font-mono text-xs overflow-hidden">
       {/* Section Header */}
       <div className="border-b border-black pb-1.5 mb-2 flex flex-wrap items-center justify-between shrink-0">
-        <h2 className="bg-[#FFFFCC] inline-block px-1 text-xs font-bold border border-black">
+        <h2 className="bg-black text-white px-2 py-0.5 text-xs font-bold border border-black tracking-wide">
           CALENDÁRIO DE RESERVAS & OCUPAÇÃO
         </h2>
         <span className="text-[10px] text-gray-700">
@@ -146,22 +146,22 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({
         <div className="flex items-center space-x-1.5">
           <button
             onClick={prevMonth}
-            className="px-2 h-6 border border-black bg-white hover:bg-[#FFFFCC] font-bold cursor-pointer text-xs"
+            className="px-2 h-6 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-xs transition-colors"
           >
             [ &lt; ANTERIOR ]
           </button>
-          <span className="font-bold text-xs bg-[#FFFFCC] px-3 h-6 flex items-center border border-black">
+          <span className="font-bold text-xs bg-gray-100 text-black px-3 h-6 flex items-center border border-black">
             {monthNames[currentMonth]} {currentYear}
           </span>
           <button
             onClick={nextMonth}
-            className="px-2 h-6 border border-black bg-white hover:bg-[#FFFFCC] font-bold cursor-pointer text-xs"
+            className="px-2 h-6 border border-black bg-white hover:bg-black hover:text-white font-bold cursor-pointer text-xs transition-colors"
           >
             [ PRÓXIMO &gt; ]
           </button>
           <button
             onClick={goToToday}
-            className="px-2 h-6 border border-black bg-white hover:bg-[#FFFFCC] text-xs cursor-pointer"
+            className="px-2 h-6 border border-black bg-white hover:bg-black hover:text-white text-xs cursor-pointer transition-colors"
           >
             [ Hoje ]
           </button>

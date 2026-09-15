@@ -9,6 +9,7 @@ import {
   Employee,
   InventoryItem,
   StockExitRecord,
+  FinancialRecord,
 } from './types';
 import {
   INITIAL_ROOMS,
@@ -26,6 +27,7 @@ import { GuestRegistration } from './components/GuestRegistration';
 import { RoomControl } from './components/RoomControl';
 import { RatePlans } from './components/RatePlans';
 import { BookingCalendar } from './components/BookingCalendar';
+import { Financeiro } from './components/Financeiro';
 import { StaffManagement } from './components/StaffManagement';
 import { InventoryManagement } from './components/InventoryManagement';
 import { EstablishmentSettings } from './components/EstablishmentSettings';
@@ -45,6 +47,7 @@ import {
   subscribeEmployees,
   subscribeInventory,
   subscribeStockExits,
+  subscribeFinancialRecords,
   saveRoomToFirestore,
   deleteRoomFromFirestore,
   saveGuestToFirestore,
@@ -61,6 +64,8 @@ import {
   deleteInventoryItemFromFirestore,
   saveStockExitToFirestore,
   deleteStockExitFromFirestore,
+  saveFinancialRecordToFirestore,
+  deleteFinancialRecordFromFirestore,
   saveClientToFirestore,
   resetFirestoreDatabase,
   clearAllFirestoreData,
@@ -100,6 +105,7 @@ export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [stockExits, setStockExits] = useState<StockExitRecord[]>([]);
+  const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
 
   const { showAlert } = useDialog();
 
@@ -215,6 +221,9 @@ export default function App() {
 
       const savedExits = localStorage.getItem(getTenantKey(clientId, 'STOCK_EXITS'));
       setStockExits(savedExits ? JSON.parse(savedExits) : (isDemo ? INITIAL_STOCK_EXITS : []));
+
+      const savedFin = localStorage.getItem(getTenantKey(clientId, 'FINANCIAL'));
+      setFinancialRecords(savedFin ? JSON.parse(savedFin) : []);
     } catch (err) {
       console.error('Erro ao ler cache local do cliente:', err);
     }
@@ -228,6 +237,7 @@ export default function App() {
     let unsubEmployees: () => void = () => {};
     let unsubInventory: () => void = () => {};
     let unsubStockExits: () => void = () => {};
+    let unsubFinancial: () => void = () => {};
 
     const initTenantCloud = async () => {
       try {
@@ -352,6 +362,21 @@ export default function App() {
             setIsCloudSynced(false);
           }
         );
+
+        unsubFinancial = subscribeFinancialRecords(
+          clientId,
+          (fireRecords) => {
+            setFinancialRecords(fireRecords);
+            try {
+              localStorage.setItem(getTenantKey(clientId, 'FINANCIAL'), JSON.stringify(fireRecords));
+            } catch {}
+            setIsCloudSynced(true);
+          },
+          (err) => {
+            console.error(`Erro financial sync (${clientId}):`, err);
+            setIsCloudSynced(false);
+          }
+        );
       } catch (err) {
         console.error('Falha ao inicializar dados do cliente no Firebase:', err);
         setIsCloudSynced(false);
@@ -369,6 +394,7 @@ export default function App() {
       unsubEmployees();
       unsubInventory();
       unsubStockExits();
+      unsubFinancial();
     };
   }, [currentClient?.id]);
 
@@ -386,20 +412,23 @@ export default function App() {
         setActiveTab('quartos');
       } else if (e.key === 'F4' || (e.altKey && e.key === '3')) {
         e.preventDefault();
-        setActiveTab('valores');
+        setActiveTab('calendario');
       } else if (e.key === 'F5' || (e.altKey && e.key === '4')) {
         e.preventDefault();
-        setActiveTab('calendario');
+        setActiveTab('financeiro');
       } else if (e.key === 'F6' || (e.altKey && e.key === '5')) {
         e.preventDefault();
-        setActiveTab('funcionarios');
-      } else if (e.key === 'F9' || (e.altKey && e.key === '7')) {
+        setActiveTab('valores');
+      } else if (e.key === 'F7' || (e.altKey && e.key === '6')) {
         e.preventDefault();
         setActiveTab('estoque');
-      } else if (e.key === 'F8' || (e.altKey && e.key === '6')) {
+      } else if (e.key === 'F8' || (e.altKey && e.key === '7')) {
+        e.preventDefault();
+        setActiveTab('funcionarios');
+      } else if (e.key === 'F9' || (e.altKey && e.key === '8')) {
         e.preventDefault();
         setActiveTab('empresa');
-      } else if (e.key === 'F7') {
+      } else if (e.key === 'F10') {
         e.preventDefault();
         setIsTxtVoucherOpen(true);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -1147,6 +1176,8 @@ export default function App() {
       localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify(targetEmps));
       localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify(targetInv));
       localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify(targetExits));
+      localStorage.setItem(getTenantKey(clientId, 'FINANCIAL'), JSON.stringify([]));
+      setFinancialRecords([]);
 
       showToast('DADOS PADRÃO RESTAURADOS NO FIREBASE!');
     } catch (err) {
@@ -1167,6 +1198,7 @@ export default function App() {
       setEmployees([]);
       setInventoryItems([]);
       setStockExits([]);
+      setFinancialRecords([]);
       setWorkplaces(['Recepção', 'Cozinha', 'Governança', 'Manutenção']);
       const standardRatePlan: RatePlan = {
         id: 'rate-standard',
@@ -1192,11 +1224,56 @@ export default function App() {
       localStorage.setItem(getTenantKey(clientId, 'EMPLOYEES'), JSON.stringify([]));
       localStorage.setItem(getTenantKey(clientId, 'INVENTORY'), JSON.stringify([]));
       localStorage.setItem(getTenantKey(clientId, 'STOCK_EXITS'), JSON.stringify([]));
+      localStorage.setItem(getTenantKey(clientId, 'FINANCIAL'), JSON.stringify([]));
 
       showToast('TODAS AS INFORMAÇÕES FORAM ZERADAS NO FIREBASE!');
     } catch (err) {
       console.error(err);
       showToast('ERRO AO ZERAR DADOS NO FIREBASE!');
+    }
+  };
+
+  // Financial Handlers
+  const handleSaveFinancialRecord = async (record: FinancialRecord) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    setFinancialRecords((prev) => {
+      const exists = prev.some((r) => r.id === record.id);
+      const updated = exists ? prev.map((r) => (r.id === record.id ? record : r)) : [record, ...prev];
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'FINANCIAL'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await saveFinancialRecordToFirestore(clientId, record);
+      showToast('LANÇAMENTO FINANCEIRO SALVO NO FIREBASE!');
+    } catch (err) {
+      console.error('Erro ao salvar financeiro:', err);
+      showToast('ERRO AO SALVAR FINANCEIRO NO FIREBASE!');
+    }
+  };
+
+  const handleDeleteFinancialRecord = async (recordId: string) => {
+    if (!currentClient) return;
+    const clientId = currentClient.id;
+
+    setFinancialRecords((prev) => {
+      const updated = prev.filter((r) => r.id !== recordId);
+      try {
+        localStorage.setItem(getTenantKey(clientId, 'FINANCIAL'), JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await deleteFinancialRecordFromFirestore(clientId, recordId);
+      showToast('LANÇAMENTO EXCLUÍDO NO FIREBASE!');
+    } catch (err) {
+      console.error('Erro ao excluir financeiro:', err);
+      showToast('ERRO AO EXCLUIR FINANCEIRO NO FIREBASE!');
     }
   };
 
@@ -1290,6 +1367,16 @@ export default function App() {
               setSelectedGuestIdForEdit(null);
               showToast(`Nova Reserva: Quarto ${roomNumber} a partir de ${date}`);
             }}
+          />
+        )}
+
+        {activeTab === 'financeiro' && (
+          <Financeiro
+            guests={guests}
+            financialRecords={financialRecords}
+            currentClient={currentClient}
+            onSaveFinancialRecord={handleSaveFinancialRecord}
+            onDeleteFinancialRecord={handleDeleteFinancialRecord}
           />
         )}
 

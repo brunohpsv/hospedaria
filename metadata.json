@@ -1,6 +1,6 @@
 {
   "name": "Bloco de Notas - Gestão Hoteleira",
-  "description": "Sistema ultra minimalista para gestão de hotéis, pousadas e vilas no estilo Bloco de Notas do Windows, com controle de estoque, saídas de almoxarifado, hóspedes, quartos, funcionários e persistência Firebase.",
+  "description": "Sistema ultra minimalista para gestão de hotéis e pousadas no estilo Bloco de Notas do Windows, com controle financeiro mensal, estoque por quantidades, hóspedes, quartos, equipe e persistência multi-usuário no Firebase.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

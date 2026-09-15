@@ -49,7 +49,7 @@ export interface RatePlan {
   minNights: number;
 }
 
-export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario' | 'funcionarios' | 'estoque' | 'empresa';
+export type ActiveTab = 'hospedes' | 'quartos' | 'valores' | 'calendario' | 'funcionarios' | 'estoque' | 'empresa' | 'financeiro';
 
 export type SubscriptionPlanType = 'basico' | 'profissional' | 'premium' | 'king';
 
@@ -75,6 +75,22 @@ export interface ClientAccount {
   accessKey: string;
   createdAt: string;
   status?: 'ativo' | 'suspenso';
+  checkInTime?: string; // Horário padrão de entrada (ex: '14:00')
+  checkOutTime?: string; // Horário padrão de saída (ex: '12:00')
+}
+
+export interface FinancialRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  type: 'receita' | 'ajuste';
+  category: string; // 'Diárias de Hospedagem', 'Consumo/Frigobar', 'Taxa de Serviço', 'Eventos/Passeios', 'Outros'
+  description: string;
+  amount: number;
+  paymentMethod: string; // 'PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Dinheiro', 'Transferência', 'Outro'
+  guestName?: string;
+  roomNumber?: string;
+  guestId?: string;
+  createdAt: string;
 }
 
 export type EmployeeStatus = 'ativo' | 'férias' | 'afastado' | 'desligado';
